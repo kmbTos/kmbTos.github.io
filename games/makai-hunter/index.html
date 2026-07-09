@@ -84,38 +84,28 @@ const MATS = {
   v_shell:  {name:"雷竜の甲殻"},
   v_sac:    {name:"電気袋"},
   v_gem:    {name:"雷竜の宝玉"},
-  sl_jelly: {name:"粘獣の粘液"},
-  sl_acid:  {name:"酸袋"},
-  sl_core:  {name:"粘獣の核"},
-  sn_scale: {name:"鋼鱗"},
-  sn_fang:  {name:"鋼蛇の牙"},
-  sn_venom: {name:"蛇毒袋"},
 };
 
 // ---------------------------------------------------------------- データ:武器
 // type: slash(斬) / pierce(突) / blunt(打)
 const TYPE_NAME = { slash:"斬", pierce:"突", blunt:"打" };
-const ELE_NAME  = { fire:"火", water:"水", thunder:"雷", poison:"毒" };
-const ELE_COLOR = { fire:"#ff7744", water:"#44aaff", thunder:"#ffdd44", poison:"#cc66ee", acid:"#88ee44" };
+const ELE_NAME  = { fire:"火", water:"水", thunder:"雷" };
+const ELE_COLOR = { fire:"#ff7744", water:"#44aaff", thunder:"#ffdd44" };
 const WEAPONS = [
   {id:"s0", name:"鉄刀",            type:"slash",  atk:20, ele:null,     eleVal:0,  cost:null},
   {id:"s1", name:"バードエッジ",    type:"slash",  atk:34, ele:null,     eleVal:0,  cost:{z:500,  mats:{g_scale:4, g_claw:2}}},
   {id:"s2", name:"フレイムエッジ",  type:"slash",  atk:42, ele:"fire",   eleVal:15, cost:{z:1200, mats:{fire_sac:3, g_wing:3, ore:2}}},
   {id:"s3", name:"アクアスラッシュ",type:"slash",  atk:50, ele:"water",  eleVal:18, cost:{z:2500, mats:{water_sac:3, a_hide:4, a_fin:1}}},
-  {id:"ss", name:"鋼鱗刀",          type:"slash",  atk:56, ele:null,     eleVal:0,  cost:{z:3200, mats:{sn_scale:4, sn_fang:2}}},
   {id:"s4", name:"サンダーブレイド",type:"slash",  atk:62, ele:"thunder",eleVal:22, cost:{z:5000, mats:{v_sac:3, v_shell:4, v_gem:1}}},
   {id:"p0", name:"鉄槍",            type:"pierce", atk:22, ele:null,     eleVal:0,  cost:null},
   {id:"p1", name:"バードランス",    type:"pierce", atk:36, ele:null,     eleVal:0,  cost:{z:500,  mats:{g_claw:3, g_scale:3}}},
   {id:"p2", name:"フレイムランス",  type:"pierce", atk:44, ele:"fire",   eleVal:15, cost:{z:1200, mats:{fire_sac:3, g_wing:2, ore:3}}},
-  {id:"pv", name:"ヴェノムパイク",  type:"pierce", atk:46, ele:"poison", eleVal:35, cost:{z:1500, mats:{sl_jelly:4, sl_acid:3}}},
   {id:"p3", name:"アクアピアス",    type:"pierce", atk:52, ele:"water",  eleVal:18, cost:{z:2500, mats:{water_sac:3, a_fin:2, a_hide:3}}},
-  {id:"ps", name:"スネークピアサー",type:"pierce", atk:58, ele:null,     eleVal:0,  cost:{z:3200, mats:{sn_scale:4, sn_fang:2}}},
   {id:"p4", name:"ライトニングスピア",type:"pierce",atk:64, ele:"thunder",eleVal:22, cost:{z:5000, mats:{v_sac:3, v_shell:3, v_gem:1}}},
   {id:"h0", name:"鉄槌",            type:"blunt",  atk:26, ele:null,     eleVal:0,  cost:null},
   {id:"h1", name:"ガルドハンマー",  type:"blunt",  atk:42, ele:null,     eleVal:0,  cost:{z:500,  mats:{g_scale:5, g_claw:2}}},
   {id:"h2", name:"フレイムクラッシャー",type:"blunt",atk:52, ele:"fire",  eleVal:12, cost:{z:1200, mats:{fire_sac:3, ore:4}}},
   {id:"h3", name:"アクアモール",    type:"blunt",  atk:60, ele:"water",  eleVal:15, cost:{z:2500, mats:{water_sac:3, a_hide:4}}},
-  {id:"hs", name:"鋼鱗槌",          type:"blunt",  atk:68, ele:null,     eleVal:0,  cost:{z:3200, mats:{sn_scale:5, sn_fang:2}}},
   {id:"h4", name:"雷神槌",          type:"blunt",  atk:74, ele:"thunder",eleVal:18, cost:{z:5000, mats:{v_sac:3, v_shell:4, v_gem:1}}},
 ];
 function weaponById(id){ return WEAPONS.find(w => w.id === id); }
@@ -124,14 +114,12 @@ function weaponById(id){ return WEAPONS.find(w => w.id === id); }
 const ARMOR_LEVELS = [
   null,
   {z:300,  mats:{g_scale:3}},
-  {z:700,  mats:{sl_jelly:3, g_wing:2}},
-  {z:1200, mats:{a_hide:3, a_fin:1}},
-  {z:2000, mats:{sn_scale:3, sn_fang:1}},
-  {z:3000, mats:{r_shell:3, r_bone:2}},
-  {z:4500, mats:{v_shell:3, r_core:1}},
-  {z:6500, mats:{v_gem:1, sn_venom:1, sl_core:1}},
+  {z:800,  mats:{a_hide:3, g_wing:2}},
+  {z:1500, mats:{r_shell:3, r_bone:2}},
+  {z:3000, mats:{r_core:1, r_shell:3}},
+  {z:5000, mats:{v_shell:3, v_gem:1}},
 ];
-function armorReduction(lv){ return 1 - lv * 0.08; } // Lv7で56%カット
+function armorReduction(lv){ return 1 - lv * 0.09; } // Lv5で45%カット
 
 // ---------------------------------------------------------------- データ:攻撃モーション
 // 武器タイプごとのモーション(魔界村式:出したら止まれない)
@@ -141,9 +129,8 @@ const MOTIONS = {
     {windup:6,  active:7,  recover:14, mv:1.25,box:{ox:14, oy:-40, w:62, h:52}, stun:0},
   ],
   pierce: [
-    // 判定は穂先のみ(柄は当たらない=密着に死角、先端で核や隙間を突ける)
-    {windup:6,  active:9,  recover:13, mv:0.95,box:{ox:64, oy:-30, w:34, h:22}, stun:0},
-    {windup:5,  active:8,  recover:16, mv:1.1, box:{ox:70, oy:-30, w:36, h:22}, stun:0},
+    {windup:6,  active:9,  recover:13, mv:0.95,box:{ox:18, oy:-30, w:80, h:20}, stun:0},
+    {windup:5,  active:8,  recover:16, mv:1.1, box:{ox:18, oy:-30, w:86, h:20}, stun:0},
   ],
   blunt: [
     {windup:16, active:8,  recover:19, mv:1.9, box:{ox:10, oy:-52, w:62, h:62}, stun:28},
@@ -156,8 +143,8 @@ const SPECIES = {
   garudos: {
     name:"火吹き鳥 ガルドス", short:"ガルドス",
     hp:520, walkSpd:1.9, bodyW:110, bodyH:78, color:"#cc5533", color2:"#883322", accent:"#ffaa33",
-    eleHz:{fire:0.5, water:1.0, thunder:1.6},
-    stunThresh:70, poisonThresh:80,
+    eleHz:{fire:0.25, water:1.0, thunder:1.6},
+    stunThresh:70,
     parts:{
       head:{ox:62,  oy:-84, w:44, h:40, hz:{slash:1.2, pierce:1.2, blunt:1.1}, flinch:90},
       body:{ox:0,   oy:-52, w:104,h:64, hz:{slash:1.0, pierce:1.0, blunt:0.9}, flinch:140},
@@ -175,8 +162,8 @@ const SPECIES = {
   aqualos: {
     name:"大水獣 アクアロス", short:"アクアロス",
     hp:820, walkSpd:1.2, bodyW:150, bodyH:92, color:"#3377aa", color2:"#225577", accent:"#66ddff",
-    eleHz:{fire:1.5, water:0.5, thunder:1.3},
-    stunThresh:90, poisonThresh:120,
+    eleHz:{fire:1.5, water:0.25, thunder:1.3},
+    stunThresh:90,
     parts:{
       head:{ox:80,  oy:-72, w:52, h:48, hz:{slash:1.1, pierce:1.2, blunt:1.0}, flinch:120},
       body:{ox:0,   oy:-56, w:140,h:78, hz:{slash:0.9, pierce:1.0, blunt:0.8}, flinch:180},
@@ -195,11 +182,11 @@ const SPECIES = {
     name:"岩甲獣 ガンロック", short:"ガンロック",
     hp:1050, walkSpd:1.0, bodyW:160, bodyH:104, color:"#887766", color2:"#554433", accent:"#ccbb99",
     eleHz:{fire:0.7, water:1.6, thunder:0.5},
-    stunThresh:110, poisonThresh:140,
+    stunThresh:110,
     parts:{
       head:{ox:82,  oy:-80, w:52, h:50, hz:{slash:0.6, pierce:0.8, blunt:1.4}, flinch:150},
-      body:{ox:0,   oy:-62, w:150,h:92, hz:{slash:0.45,pierce:0.55,blunt:1.2}, flinch:220},
-      tail:{ox:-98, oy:-54, w:56, h:34, hz:{slash:0.5, pierce:0.6, blunt:1.0}, flinch:170, cuttable:true, cutHP:210},
+      body:{ox:0,   oy:-62, w:150,h:92, hz:{slash:0.4, pierce:0.5, blunt:1.2}, flinch:220},
+      tail:{ox:-98, oy:-54, w:56, h:34, hz:{slash:0.45,pierce:0.6, blunt:1.0}, flinch:170, cuttable:true, cutHP:210},
     },
     moves:[
       {name:"なぎ払い",   kind:"melee", minD:0,   maxD:170, w:3, windup:26, active:10, recover:30, dmg:24, box:{ox:80, oy:-84, w:96, h:80}},
@@ -212,8 +199,8 @@ const SPECIES = {
   volteus: {
     name:"轟雷竜 ボルテウス", short:"ボルテウス",
     hp:1550, walkSpd:1.5, bodyW:170, bodyH:110, color:"#7766aa", color2:"#443377", accent:"#ffee55",
-    eleHz:{fire:0.9, water:1.5, thunder:0.35},
-    stunThresh:130, poisonThresh:180, enrageAt:0.45,
+    eleHz:{fire:0.9, water:1.5, thunder:0.1},
+    stunThresh:130, enrageAt:0.45,
     parts:{
       head:{ox:92,  oy:-98, w:56, h:52, hz:{slash:1.1, pierce:1.3, blunt:1.2}, flinch:170},
       body:{ox:0,   oy:-68, w:160,h:100,hz:{slash:0.8, pierce:0.9, blunt:0.8}, flinch:260},
@@ -229,66 +216,21 @@ const SPECIES = {
     carve:[["v_shell",55],["v_sac",35],["v_gem",10]],
     tailCarve:[["v_gem",30],["v_sac",40],["v_shell",30]],
   },
-  venoslime: {
-    name:"毒沼の粘獣 ヴェノスライム", short:"ヴェノスライム",
-    hp:650, walkSpd:0.9, bodyW:130, bodyH:86, color:"#66bb44", color2:"#3d7a2e", accent:"#eeff88",
-    eleHz:{fire:1.6, water:0.6, thunder:1.1},
-    stunThresh:99999, poisonThresh:999999,
-    bounceMsg:"吸収された!",
-    acid:true, acidDmg:3,
-    parts:{
-      // 核は常にプレイヤーの反対側(ox負=向きの逆) → 槍のリーチでのみ外から安全に届く
-      core:{ox:-18, oy:-46, w:34, h:30, hz:{slash:0.9, pierce:1.5, blunt:0.75}, flinch:90},
-      body:{ox:0, oy:-46, w:120,h:84, hz:{slash:0.7, pierce:0.85,blunt:0.45}, flinch:210},
-    },
-    moves:[
-      {name:"酸弾",   kind:"proj", minD:160, maxD:900, w:3, windup:30, active:6,  recover:30, dmg:16, proj:{spd:6, ele:"acid", n:1}},
-      {name:"跳びのり",kind:"jump", minD:60, maxD:420, w:3, windup:28, active:0,  recover:30, dmg:22},
-      {name:"酸飛沫", kind:"aoe",  minD:0,   maxD:240, w:2, windup:34, active:12, recover:36, dmg:18, r:210},
-    ],
-    carve:[["sl_jelly",50],["sl_acid",32],["sl_core",18]],
-  },
-  viperos: {
-    name:"鋼鱗蛇 ヴィペロス", short:"ヴィペロス",
-    hp:1150, walkSpd:2.2, bodyW:200, bodyH:44, color:"#6a7a5a", color2:"#48543e", accent:"#aabb77",
-    eleHz:{fire:1.2, water:1.5, thunder:0.7},
-    stunThresh:130, poisonThresh:160,
-    parts:{
-      head:{ox:100, oy:-30, w:48, h:36, hz:{slash:0.65,pierce:1.4, blunt:0.7},  flinch:140},
-      body:{ox:-8,  oy:-22, w:150,h:38, hz:{slash:0.5, pierce:1.15,blunt:0.5},  flinch:230},
-      tail:{ox:-112,oy:-20, w:58, h:28, hz:{slash:0.75,pierce:0.9, blunt:0.5},  flinch:160, cuttable:true, cutHP:190},
-    },
-    moves:[
-      {name:"かみつき", kind:"melee", minD:0,   maxD:150, w:3, windup:14, active:8,  recover:26, dmg:20, box:{ox:110, oy:-30, w:76, h:50}},
-      {name:"高速滑走", kind:"lunge", minD:120, maxD:800, w:3, windup:20, active:28, recover:30, dmg:24, spd:9.5},
-      {name:"尻尾打ち", kind:"melee", minD:0,   maxD:200, w:2, windup:22, active:10, recover:30, dmg:22, box:{ox:-40, oy:-30, w:200, h:50}},
-      {name:"毒霧",     kind:"aoe",   minD:0,   maxD:280, w:2, windup:36, active:16, recover:38, dmg:12, r:240, poison:true},
-    ],
-    carve:[["sn_scale",50],["sn_fang",32],["sn_venom",18]],
-    tailCarve:[["sn_fang",40],["sn_venom",35],["sn_scale",25]],
-  },
 };
 
 // ---------------------------------------------------------------- データ:クエスト
-// tier: 同じ★のクエストは一括開放。前の★を全て達成で次の★が開く
 const QUESTS = [
-  {id:0, tier:1, name:"跳びまわる火吹き鳥", target:"garudos", zenny:600,
-   desc:"火炎弾を吐く鳥竜ガルドスの討伐。\nどの武器でも狩れる入門クエスト。\n素材は火属性武器の材料になる。雷が良く効く。",
+  {id:0, name:"跳びまわる火吹き鳥", target:"garudos", rank:1, zenny:600,
+   desc:"火炎弾を吐く鳥竜ガルドスの討伐。\n雷に弱く、火はほぼ効かない。",
    rewards:[["ore",35],["g_scale",25],["g_wing",15],["g_claw",10],["fire_sac",15]]},
-  {id:4, tier:2, name:"毒沼にうごめく粘塊", target:"venoslime", zenny:1000,
-   desc:"沼から湧いた粘獣の討伐。体内の核が弱点。\n槍なら外から安全に核を貫ける。近接で挑む\nなら酸に触れる覚悟を。火でよく燃える。",
-   rewards:[["sl_jelly",40],["sl_acid",30],["sl_core",10],["ore",20]]},
-  {id:1, tier:2, name:"沼地の大水獣", target:"aqualos", zenny:1200,
-   desc:"巨体の水獣アクアロスの討伐。\n足は遅いが一撃が重い。\n火属性なら早く狩れる。",
+  {id:1, name:"沼地の大水獣", target:"aqualos", rank:2, zenny:1100, needs:0,
+   desc:"巨体の水獣アクアロスの討伐。\n火属性が有効。水は無効に近い。",
    rewards:[["ore",25],["a_hide",30],["water_sac",25],["a_fin",10],["g_scale",10]]},
-  {id:5, tier:3, name:"鋼の鱗をまとう大蛇", target:"viperos", zenny:2200,
-   desc:"鋼鱗蛇ヴィペロスの討伐。鱗は硬いが\n槍なら隙間を貫けて早い。低い突進は\nジャンプでかわせ。水属性が有効。",
-   rewards:[["sn_scale",40],["sn_fang",30],["sn_venom",12],["ore",18]]},
-  {id:2, tier:3, name:"岩壁の重戦車", target:"ganrock", zenny:2400,
-   desc:"外殻が硬い岩甲獣ガンロック討伐。\n胴は斬撃を弾くが、頭と尻尾なら通る。\n打撃と水属性なら早く崩せる。",
+  {id:2, name:"岩壁の重戦車", target:"ganrock", rank:3, zenny:1700, needs:1,
+   desc:"外殻が硬い岩甲獣ガンロック討伐。\n斬・突は弾かれる。打撃と水属性で挑め。",
    rewards:[["ore",20],["r_shell",35],["r_bone",30],["r_core",8],["water_sac",7]]},
-  {id:3, tier:3, name:"轟く雷の王", target:"volteus", zenny:3600,
-   desc:"魔界の空を裂く轟雷竜ボルテウス討伐。\n最強の魔獣。水属性が最大の弱点で、\n雷への耐性は高い。",
+  {id:3, name:"轟く雷の王", target:"volteus", rank:4, zenny:3200, needs:2,
+   desc:"魔界の空を裂く轟雷竜ボルテウス討伐。\n水属性が最大の弱点。雷はまず通らない。",
    rewards:[["v_shell",40],["v_sac",30],["v_gem",10],["ore",20]]},
 ];
 
@@ -308,10 +250,7 @@ function commitSave(){
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch(e){}
 }
 function addMat(id, n){ save.mats[id] = (save.mats[id]||0) + n; }
-function questUnlocked(q){
-  if (q.tier <= 1) return true;
-  return QUESTS.filter(x => x.tier === q.tier - 1).every(x => save.cleared[x.id]);
-}
+function questUnlocked(q){ return q.needs === undefined || save.cleared[q.needs]; }
 function canCraft(cost){
   if (!cost) return false;
   if (save.zenny < cost.z) return false;
@@ -383,7 +322,7 @@ function TitleScene(){
       for (let i=0;i<6;i++){ const x=90+i*150; rect(x,438,26,42,"#222233"); rect(x-6,432,38,10,"#2a2a3e"); }
       rect(0,480,960,60,"#161622");
       text("魔 界 の 狩 人", 480, 190, 64, "#ddbb55", "center");
-      text("- MAKAI HUNTER -  v1.2", 480, 235, 22, "#997733", "center");
+      text("- MAKAI HUNTER -  v1.0", 480, 235, 22, "#997733", "center");
       if ((t/30|0)%2===0) text("Zキーでスタート", 480, 330, 22, "#ffffff", "center");
       text("← → 移動   Z 攻撃/決定   X ジャンプ/戻る   C 回避   A 回復薬   ↓ 剥ぎ取り", 480, 430, 15, "#8888aa", "center");
       text("※ジャンプ中は方向を変えられない(魔界村式)。攻撃も出したら止まれない。", 480, 456, 14, "#666688", "center");
@@ -405,7 +344,7 @@ function VillageScene(){
   function smithList(){
     const list = [];
     for (const w of WEAPONS){ if (w.cost) list.push({kind:"weapon", w}); }
-    if (save.armorLv < 7) list.push({kind:"armor"});
+    if (save.armorLv < 5) list.push({kind:"armor"});
     return list;
   }
   function setMsg(s){ msg = s; msgT = 150; }
@@ -447,7 +386,7 @@ function VillageScene(){
             const cost = ARMOR_LEVELS[save.armorLv+1];
             if (canCraft(cost)){
               payCost(cost); save.armorLv++; commitSave();
-              SFX.craft(); setMsg(`防具を強化した! (Lv${save.armorLv}: 被ダメージ${save.armorLv*8}%カット)`);
+              SFX.craft(); setMsg(`防具を強化した! (Lv${save.armorLv}: 被ダメージ${save.armorLv*9}%カット)`);
             } else { SFX.cancel(); setMsg("素材かゼニーが足りない…"); }
           }
         }
@@ -493,8 +432,8 @@ function VillageScene(){
         QUESTS.forEach((q,i)=>{
           const un = questUnlocked(q);
           const col = !un ? "#555566" : (i===cur2 ? "#ffee88" : "#ccccdd");
-          const star = "★".repeat(q.tier);
-          text((i===cur2?"▶ ":"  ")+(un?`${star} ${q.name}`:`${star} ???(★${q.tier-1}を全て達成で開放)`), 60, 155+i*36, 17, col);
+          const star = "★".repeat(q.rank);
+          text((i===cur2?"▶ ":"  ")+(un?`${star} ${q.name}`:`${star} ???(前クエストを達成せよ)`), 60, 155+i*36, 17, col);
           if (save.cleared[q.id]) text("済", 480, 155+i*36, 15, "#88ff88");
         });
         const q = QUESTS[cur2];
@@ -511,16 +450,16 @@ function VillageScene(){
         panel(40, 90, 470, 420);
         text("加工屋 (Z:生産 X:戻る)", 60, 120, 18, "#ffddaa");
         list.forEach((it,i)=>{
-          const y = 150+i*22;
+          const y = 152+i*25;
           if (it.kind === "weapon"){
             const w = it.w;
             const has = save.owned.includes(w.id);
             const ok = canCraft(w.cost);
             const col = i===cur2 ? "#ffee88" : has ? "#66aa66" : ok ? "#ffffff" : "#777788";
-            text(`${i===cur2?"▶":" "} [${TYPE_NAME[w.type]}] ${w.name}${has?" (所持)":""}`, 58, y, 14, col);
+            text(`${i===cur2?"▶":" "} [${TYPE_NAME[w.type]}] ${w.name}${has?" (所持)":""}`, 58, y, 15, col);
           } else {
             const col = i===cur2 ? "#ffee88" : canCraft(ARMOR_LEVELS[save.armorLv+1]) ? "#ffffff" : "#777788";
-            text(`${i===cur2?"▶":" "} ◆ 防具強化 Lv${save.armorLv} → Lv${save.armorLv+1}`, 58, y, 14, col);
+            text(`${i===cur2?"▶":" "} ◆ 防具強化 Lv${save.armorLv} → Lv${save.armorLv+1}`, 58, y, 15, col);
           }
         });
         // 詳細
@@ -535,7 +474,7 @@ function VillageScene(){
           } else {
             costObj = ARMOR_LEVELS[save.armorLv+1];
             title = `防具強化 Lv${save.armorLv+1}`;
-            detail = `被ダメージ ${(save.armorLv+1)*8}%カット`;
+            detail = `被ダメージ ${(save.armorLv+1)*9}%カット`;
           }
           text(title, 550, 125, 18, "#ffddaa");
           text(detail, 550, 152, 15, "#ffffff");
@@ -554,9 +493,9 @@ function VillageScene(){
         save.owned.map(weaponById).forEach((w,i)=>{
           const col = i===cur2 ? "#ffee88" : "#ccccdd";
           const mark = save.equipped===w.id ? "E " : "  ";
-          text(`${i===cur2?"▶":" "} ${mark}[${TYPE_NAME[w.type]}] ${w.name}  攻${w.atk}${w.ele?` ${ELE_NAME[w.ele]}${w.eleVal}`:""}`, 58, 148+i*18, 13, col);
+          text(`${i===cur2?"▶":" "} ${mark}[${TYPE_NAME[w.type]}] ${w.name}  攻${w.atk}${w.ele?` ${ELE_NAME[w.ele]}${w.eleVal}`:""}`, 58, 150+i*21, 14, col);
         });
-        text("斬:尻尾切断  突:リーチ長・核や鱗の隙間を貫く  打:頭を殴るとスタン", 60, 470, 13, "#8888aa");
+        text("斬:尻尾を切断できる  突:リーチ長  打:頭を殴るとスタン", 60, 470, 13, "#8888aa");
       } else if (mode === "box"){
         panel(40, 90, 880, 420);
         text("素材ボックス (X:戻る)", 60, 120, 18, "#ffddaa");
@@ -576,9 +515,8 @@ function VillageScene(){
           "C : 回避ローリング(出始めに無敵あり)",
           "A : 回復薬を飲む(飲んでいる間は無防備)",
           "Enter : ポーズ / クエスト撤退",
-          "◆ 毒武器は当て続けると毒状態にできる(じわじわ削る)",
-          "◆ 槍は穂先にのみ判定がある。密着せず一歩引いた間合いから突け",
-          "◆ 部位で肉質が違う。硬い部位は弾かれる(相手により有効な武器種は別)",
+          "",
+          "◆ 部位で肉質が違う。硬い部位は弾かれる(打撃は弾かれにくい)",
           "◆ 斬武器で尻尾を攻撃し続けると切断→追加剥ぎ取り",
           "◆ 打武器で頭部を殴るとスタンして大チャンス",
           "◆ 属性の相性で与ダメージが大きく変わる。弱点を狩って装備を作れ",
@@ -615,7 +553,6 @@ function HuntScene(quest){
     invuln: 0, rollIF: 0,
     jumpVx: 0,
     drinkHeal: 0,
-    poisonT: 0,
   };
   // ---------------- モンスター
   const M = {
@@ -624,11 +561,8 @@ function HuntScene(quest){
     state: "idle", st: 0, cooldown: 60,
     move: null, dead: false, deadT: 0,
     stunGauge: 0, stunThresh: sp.stunThresh, stunT: 0,
-    flinchT: 0,
-    partDmg: Object.fromEntries(Object.keys(sp.parts).map(k=>[k,0])),
-    flinchTh: Object.fromEntries(Object.keys(sp.parts).map(k=>[k, sp.parts[k].flinch])),
-    poisonBuild: 0, poisonThresh: sp.poisonThresh || 100, poisonedT: 0,
-    acidTick: 0,
+    flinchT: 0, partDmg: {head:0, body:0, tail:0},
+    flinchTh: {head: sp.parts.head.flinch, body: sp.parts.body.flinch, tail: sp.parts.tail.flinch},
     tailCut: false, tailDmg: 0,
     enraged: false, lastHitId: -1,
     carves: 3, roarT: 0,
@@ -670,7 +604,7 @@ function HuntScene(quest){
   function playerBox(){ return { x: P.x - P.w/2, y: P.y - P.h, w: P.w, h: P.h }; }
 
   // ---------------- プレイヤーへのダメージ
-  function hurtPlayer(dmg, fromX, opts){
+  function hurtPlayer(dmg, fromX){
     if (P.invuln > 0 || P.rollIF > 0 || P.state === "dead" || phase !== "fight") return;
     const mult = M.enraged ? 1.3 : 1.0;
     const final = Math.max(1, Math.round(dmg * mult * armorReduction(save.armorLv)));
@@ -681,41 +615,19 @@ function HuntScene(quest){
     P.state = "hurt"; P.st = 0;
     P.vx = (P.x < fromX ? -1 : 1) * 4; P.vy = -4; P.onGround = false;
     P.invuln = 70;
-    if (opts && opts.poison && P.hp > 0){
-      P.poisonT = 480;
-      addDmg(P.x, P.y - 84, "毒をうけた!", "#cc66ee");
-    }
     if (P.hp <= 0){ P.hp = 0; P.state = "dead"; P.st = 0; phase = "failed"; phaseT = 0; SFX.fail(); }
-  }
-
-  // ノックバックなしのスリップダメージ(酸・毒)
-  function chipPlayer(dmg, col){
-    if (P.state === "dead" || phase !== "fight" || P.rollIF > 0) return;
-    P.hp -= dmg;
-    addDmg(P.x, P.y - 56, dmg, col || "#88ee44");
-    if (P.hp <= 0){ P.hp = 0; P.state = "dead"; P.st = 0; phase = "failed"; phaseT = 0; SFX.fail(); }
-  }
-
-  function monsterDead(){
-    M.hp = 0; M.dead = true; M.state = "dead"; M.st = 0; M.move = null; M.poisonedT = 0;
-    phase = "cleared"; phaseT = 0; endTimer = 60*50;
-    setBanner("討 伐 完 了 !", 160);
-    SFX.clear();
   }
 
   // ---------------- モンスターへのダメージ
   function hitMonster(box){
     if (M.dead || M.lastHitId === P.atkId) return;
     const boxes = partBoxes();
-    let best = null, bestC = 0;
+    let best = null, bestD = 1e9;
     for (const pn in boxes){
       const b = boxes[pn];
       if (overlap(box, b)){
-        // 部位自身の面積をどれだけ覆ったかで判定(小部位は狙いが合えば勝つ)
-        const ix = Math.min(box.x+box.w, b.x+b.w) - Math.max(box.x, b.x);
-        const iy = Math.min(box.y+box.h, b.y+b.h) - Math.max(box.y, b.y);
-        const cover = (ix*iy) / (b.w*b.h);
-        if (cover > bestC){ bestC = cover; best = pn; }
+        const d = Math.abs((b.x+b.w/2) - (box.x+box.w/2));
+        if (d < bestD){ bestD = d; best = pn; }
       }
     }
     if (!best) return;
@@ -725,7 +637,7 @@ function HuntScene(quest){
     const rawHz = part.hz[wpn.type];
     const raw = wpn.atk * mo.mv * rawHz;
     let ele = 0;
-    if (wpn.ele && wpn.ele !== "poison") ele = wpn.eleVal * (sp.eleHz[wpn.ele]||1);
+    if (wpn.ele) ele = wpn.eleVal * (sp.eleHz[wpn.ele]||1);
     const total = Math.max(1, Math.round(raw + ele));
     M.hp -= total;
     M.partDmg[best] += total;
@@ -740,22 +652,12 @@ function HuntScene(quest){
     if (rawHz < 0.5){
       SFX.bounce();
       P.bounced = true;
-      addDmg(hx, hy - 34, sp.bounceMsg || "弾かれた!", "#ffaa44");
+      addDmg(hx, hy - 34, "弾かれた!", "#ffaa44");
     } else {
       wpn.ele ? SFX.hitEle() : SFX.hit();
     }
-    // 毒蓄積(弾かれ時は蓄積しない)
-    if (wpn.ele === "poison" && rawHz >= 0.5 && M.poisonedT <= 0){
-      M.poisonBuild += wpn.eleVal;
-      if (M.poisonBuild >= M.poisonThresh){
-        M.poisonBuild = 0; M.poisonThresh *= 1.5;
-        M.poisonedT = 600;
-        addDmg(M.x, M.y - sp.bodyH - 30, "毒!", "#cc66ee");
-        beep(300, 0.3, "sine", 0.05);
-      }
-    }
-    // スタン(打撃で頭・弾かれ時は蓄積しない)
-    if (wpn.type === "blunt" && best === "head" && rawHz >= 0.5 && M.stunT <= 0){
+    // スタン(打撃で頭)
+    if (wpn.type === "blunt" && best === "head" && M.stunT <= 0){
       M.stunGauge += mo.stun;
       if (M.stunGauge >= M.stunThresh){
         M.stunGauge = 0; M.stunThresh *= 1.6;
@@ -786,7 +688,12 @@ function HuntScene(quest){
       }
     }
     // 討伐
-    if (M.hp <= 0) monsterDead();
+    if (M.hp <= 0){
+      M.hp = 0; M.dead = true; M.state = "dead"; M.st = 0; M.move = null;
+      phase = "cleared"; phaseT = 0; endTimer = 60*50;
+      setBanner("討 伐 完 了 !", 160);
+      SFX.clear();
+    }
     shake = Math.min(shake + (wpn.type==="blunt"?5:2), 12);
   }
 
@@ -794,11 +701,6 @@ function HuntScene(quest){
   function updatePlayer(){
     if (P.invuln > 0) P.invuln--;
     if (P.rollIF > 0) P.rollIF--;
-    // 毒状態(回復薬で治る)
-    if (P.poisonT > 0 && P.state !== "dead"){
-      P.poisonT--;
-      if (P.poisonT > 0 && P.poisonT % 45 === 0) chipPlayer(2, "#cc66ee");
-    }
     P.st++;
 
     const mo = P.state === "attack" ? (MOTIONS[wpn.type][P.combo] || MOTIONS[wpn.type][0]) : null;
@@ -827,7 +729,7 @@ function HuntScene(quest){
         }
         else if (pressed("KeyC")) { P.state = "roll"; P.st = 0; P.rollIF = 14; P.vx = 0; SFX.roll(); }
         else if (pressed("KeyA") && P.potions > 0 && P.hp < P.maxHp) {
-          P.state = "drink"; P.st = 0; P.potions--; P.drinkHeal = 60; P.vx = 0; P.poisonT = 0; SFX.potion();
+          P.state = "drink"; P.st = 0; P.potions--; P.drinkHeal = 60; P.vx = 0; SFX.potion();
         }
         break;
       }
@@ -932,16 +834,6 @@ function HuntScene(quest){
     if (M.dead){ M.deadT++; return; }
     if (phase !== "fight") return;
 
-    // 毒状態のスリップダメージ
-    if (M.poisonedT > 0){
-      M.poisonedT--;
-      if (M.poisonedT > 0 && M.poisonedT % 30 === 0){
-        M.hp -= 7;
-        addDmg(M.x + (Math.random()*60-30), M.y - sp.bodyH - 16, 7, "#cc66ee");
-        if (M.hp <= 0){ monsterDead(); return; }
-      }
-    }
-
     // 怒り移行
     const enrageAt = sp.enrageAt || 0.4;
     if (!M.enraged && M.hp < M.maxHp * enrageAt){
@@ -984,7 +876,7 @@ function HuntScene(quest){
           if (inActive && !M.hitPlayerDone){
             const b = mv.box;
             const hb = { x: M.x + b.ox*M.face - b.w/2, y: M.y + b.oy - b.h/2, w: b.w, h: b.h };
-            if (overlap(hb, playerBox())){ hurtPlayer(mv.dmg, M.x, mv); M.hitPlayerDone = true; }
+            if (overlap(hb, playerBox())){ hurtPlayer(mv.dmg, M.x); M.hitPlayerDone = true; }
           }
         } else if (mv.kind === "lunge" || mv.kind === "roll"){
           if (inActive){
@@ -992,7 +884,7 @@ function HuntScene(quest){
             if (M.x < 100 || M.x > WORLD_W-100){ M.st = mv.windup + mv.active; } // 壁で終了
             const bodyB = partBoxes().body;
             if (bodyB && overlap(bodyB, playerBox()) && !M.hitPlayerDone){
-              hurtPlayer(mv.dmg, M.x, mv); M.hitPlayerDone = true;
+              hurtPlayer(mv.dmg, M.x); M.hitPlayerDone = true;
             }
           }
         } else if (mv.kind === "jump"){
@@ -1007,8 +899,8 @@ function HuntScene(quest){
               M.y = GROUND_Y; M.airborne = false; shake = 10;
               // 着地衝撃
               const bodyB = partBoxes().body;
-              if (bodyB && overlap(bodyB, playerBox())) hurtPlayer(mv.dmg, M.x, mv);
-              else if (P.onGround && Math.abs(P.x - M.x) < sp.bodyW/2 + 60) hurtPlayer(Math.round(mv.dmg*0.6), M.x, mv);
+              if (bodyB && overlap(bodyB, playerBox())) hurtPlayer(mv.dmg, M.x);
+              else if (P.onGround && Math.abs(P.x - M.x) < sp.bodyW/2 + 60) hurtPlayer(Math.round(mv.dmg*0.6), M.x);
               M.st = mv.windup + mv.active; // recoverへ
             }
             if (M.airborne) return; // 空中は継続
@@ -1035,7 +927,7 @@ function HuntScene(quest){
           }
           if (inActive){
             if (P.onGround && Math.abs(P.x - M.x) < mv.r && !M.hitPlayerDone){
-              hurtPlayer(mv.dmg, M.x, mv); M.hitPlayerDone = true;
+              hurtPlayer(mv.dmg, M.x); M.hitPlayerDone = true;
             }
           }
         }
@@ -1056,7 +948,7 @@ function HuntScene(quest){
       const p = projs[i];
       p.x += p.vx; p.y += p.vy; p.t++;
       if (overlap({x:p.x-8,y:p.y-8,w:16,h:16}, playerBox())){
-        hurtPlayer(p.dmg, p.x, p); projs.splice(i,1); continue;
+        hurtPlayer(p.dmg, p.x); projs.splice(i,1); continue;
       }
       if (p.y > GROUND_Y || p.x < 0 || p.x > WORLD_W || p.t > 240){
         addSpark(p.x, Math.min(p.y, GROUND_Y), ELE_COLOR[p.ele], 5);
@@ -1197,29 +1089,10 @@ function HuntScene(quest){
     ctx.translate(x, y);
     if (M.dead){
       const r = Math.min(1, M.deadT/26);
-      if (quest.target === "venoslime") ctx.scale(1, 1 - 0.65*r);
-      else if (quest.target === "viperos") ctx.scale(1, 1 - 0.4*r);
-      else ctx.rotate(f * r * Math.PI/2 * 0.55);
+      ctx.rotate(f * r * Math.PI/2 * 0.55);
+      ctx.globalAlpha = 1;
     }
     const flash = sparksFlash();
-    if (quest.target === "venoslime") drawSlimeShape(f, flash);
-    else if (quest.target === "viperos") drawSnakeShape(f, flash);
-    else drawQuadShape(f, flash);
-    drawMonsterOverlays(f);
-    ctx.restore();
-
-    // 切断された尻尾
-    if (tailObj){
-      const tx = tailObj.x - cam;
-      ctx.fillStyle = sp.color2;
-      ctx.beginPath();
-      ctx.moveTo(tx-28, GROUND_Y-6); ctx.lineTo(tx+28, GROUND_Y-16); ctx.lineTo(tx+20, GROUND_Y); ctx.fill();
-      if (phase === "cleared" && tailObj.carves > 0)
-        text("↓剥ぎ取り", tx, GROUND_Y - 28, 13, "#aaffaa", "center");
-    }
-  }
-
-  function drawQuadShape(f, flash){
     const bodyC = flash ? "#ffffff" : sp.color;
     const darkC = flash ? "#dddddd" : sp.color2;
     const legAnim = (M.state==="idle" && !M.dead) ? Math.sin(M.animT*0.25)*4 : 0;
@@ -1283,112 +1156,33 @@ function HuntScene(quest){
     // 目
     ctx.fillStyle = M.enraged ? "#ff3333" : "#ffee66";
     ctx.beginPath(); ctx.arc(f*(hp_.ox+6), hp_.oy-8, 5, 0, 7); ctx.fill();
-  }
-
-  // 共通オーバーレイ(スタン星・毒泡・怒りオーラ・予備動作)
-  function drawMonsterOverlays(f){
-    const anchor = sp.parts.head || sp.parts.core || sp.parts.body;
+    // スタン星
     if (M.stunT > 0){
       for (let i=0;i<3;i++){
         const a = M.animT*0.15 + i*2.1;
-        text("★", f*anchor.ox + Math.cos(a)*30, anchor.oy - 40 + Math.sin(a)*8, 16, "#ffee55", "center");
+        text("★", f*hp_.ox + Math.cos(a)*30, hp_.oy - 40 + Math.sin(a)*8, 16, "#ffee55", "center");
       }
     }
-    if (M.poisonedT > 0 && !M.dead){
-      for (let i=0;i<3;i++){
-        const rise = (M.animT*1.2 + i*40) % 70;
-        ctx.fillStyle = "rgba(204,102,238,0.7)";
-        ctx.beginPath(); ctx.arc(Math.sin(M.animT*0.08+i*2)*34, sp.parts.body.oy - rise*0.9, 4, 0, 7); ctx.fill();
-      }
-    }
+    // 怒りオーラ
     if (M.enraged && !M.dead && (M.animT/4|0)%2===0){
-      const bp = sp.parts.body;
       ctx.strokeStyle = "rgba(255,60,60,0.5)"; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.ellipse(0, bp.oy, bp.w/2+10, bp.h/2+10, 0, 0, 7); ctx.stroke();
     }
+    // 予備動作の表示(点滅)
     if (M.state === "act" && M.move && M.st <= M.move.windup && (M.animT/4|0)%2===0){
       ctx.strokeStyle = "#ffff88"; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.ellipse(f*anchor.ox, anchor.oy, anchor.w/2+8, anchor.h/2+8, 0, 0, 7); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(f*hp_.ox, hp_.oy, hp_.w/2+8, hp_.h/2+8, 0, 0, 7); ctx.stroke();
     }
-  }
+    ctx.restore();
 
-  // 粘獣(スライム)
-  function drawSlimeShape(f, flash){
-    const bp = sp.parts.body;
-    const wob = Math.sin(M.animT*0.12)*0.06 + (M.state==="act" ? 0.05 : 0);
-    const rw = bp.w/2 * (1+wob), rh = bp.h/2 * (1-wob);
-    // 本体(半透明ゼリー)
-    ctx.globalAlpha = 0.85;
-    ctx.fillStyle = flash ? "#ffffff" : sp.color;
-    ctx.beginPath(); ctx.ellipse(0, bp.oy, rw, rh, 0, 0, 7); ctx.fill();
-    ctx.globalAlpha = 1;
-    // 底面の広がり
-    ctx.fillStyle = flash ? "#eeeeee" : sp.color2;
-    ctx.beginPath(); ctx.ellipse(0, -7, rw*0.92, 10, 0, 0, 7); ctx.fill();
-    // 表面ハイライト
-    ctx.fillStyle = "rgba(255,255,255,0.25)";
-    ctx.beginPath(); ctx.ellipse(-rw*0.3, bp.oy - rh*0.4, rw*0.3, rh*0.18, -0.5, 0, 7); ctx.fill();
-    // 核(弱点・透けて見える)
-    const cp = sp.parts.core;
-    const pulse = 1 + Math.sin(M.animT*0.2)*0.15;
-    ctx.fillStyle = flash ? "#ffffff" : sp.accent;
-    ctx.beginPath(); ctx.arc(f*cp.ox, cp.oy, 13*pulse, 0, 7); ctx.fill();
-    ctx.fillStyle = "#ffffff";
-    ctx.beginPath(); ctx.arc(f*cp.ox, cp.oy, 5*pulse, 0, 7); ctx.fill();
-    // 目
-    ctx.fillStyle = M.enraged ? "#ff3333" : "#224422";
-    ctx.beginPath(); ctx.arc(f*22, bp.oy - rh*0.5, 4, 0, 7); ctx.fill();
-    ctx.beginPath(); ctx.arc(f*38, bp.oy - rh*0.4, 4, 0, 7); ctx.fill();
-    // 滴る酸
-    ctx.fillStyle = "rgba(136,238,68,0.6)";
-    for (let i=0;i<3;i++){
-      const dx2 = Math.sin(i*2.5+1)*rw*0.7;
-      const dy2 = (M.animT*0.8 + i*30) % 40;
-      ctx.fillRect(dx2-2, -10 + dy2*0.25, 4, 6);
-    }
-  }
-
-  // 鋼鱗蛇
-  function drawSnakeShape(f, flash){
-    const bodyC = flash ? "#ffffff" : sp.color;
-    const darkC = flash ? "#eeeeee" : sp.color2;
-    const segs = M.tailCut ? 7 : 10;
-    for (let i=segs; i>=1; i--){
-      const px = f*(76 - i*20);
-      const wave = Math.sin(M.animT*0.15 + i*0.8) * 5;
-      const r = Math.max(7, 17 - i*0.9);
-      ctx.fillStyle = i%2 ? bodyC : darkC;
-      ctx.beginPath(); ctx.arc(px, -13 + wave*0.4, r, 0, 7); ctx.fill();
-      if (i%2){
-        ctx.fillStyle = "rgba(255,255,255,0.18)";
-        ctx.beginPath(); ctx.arc(px - 3, -17 + wave*0.4, r*0.45, 0, 7); ctx.fill();
-      }
-    }
-    if (M.tailCut){
-      ctx.fillStyle = "#aa3333";
-      ctx.beginPath(); ctx.arc(f*(76-7*20), -13, 8, 0, 7); ctx.fill();
-    }
-    // 頭
-    const hp_ = sp.parts.head;
-    ctx.fillStyle = bodyC;
-    ctx.beginPath(); ctx.ellipse(f*hp_.ox, hp_.oy, hp_.w/2, hp_.h/2, 0, 0, 7); ctx.fill();
-    // 目
-    ctx.fillStyle = M.enraged ? "#ff3333" : "#ffee66";
-    ctx.beginPath(); ctx.arc(f*(hp_.ox+10), hp_.oy-8, 4, 0, 7); ctx.fill();
-    // 牙
-    ctx.fillStyle = "#ffffff";
-    ctx.beginPath();
-    ctx.moveTo(f*(hp_.ox+hp_.w/2-10), hp_.oy+6);
-    ctx.lineTo(f*(hp_.ox+hp_.w/2-6), hp_.oy+16);
-    ctx.lineTo(f*(hp_.ox+hp_.w/2-2), hp_.oy+6);
-    ctx.fill();
-    // 舌(ちろちろ)
-    if ((M.animT/16|0)%2===0 && !M.dead){
-      ctx.strokeStyle = "#ff5566"; ctx.lineWidth = 2;
+    // 切断された尻尾
+    if (tailObj){
+      const tx = tailObj.x - cam;
+      ctx.fillStyle = sp.color2;
       ctx.beginPath();
-      ctx.moveTo(f*(hp_.ox+hp_.w/2), hp_.oy+2);
-      ctx.lineTo(f*(hp_.ox+hp_.w/2+16), hp_.oy-2);
-      ctx.stroke();
+      ctx.moveTo(tx-28, GROUND_Y-6); ctx.lineTo(tx+28, GROUND_Y-16); ctx.lineTo(tx+20, GROUND_Y); ctx.fill();
+      if (phase === "cleared" && tailObj.carves > 0)
+        text("↓剥ぎ取り", tx, GROUND_Y - 28, 13, "#aaffaa", "center");
     }
   }
   let hitFlashT = 0;
@@ -1399,7 +1193,6 @@ function HuntScene(quest){
     rect(20, 20, 264, 20, "#221122");
     rect(22, 22, 260 * (P.hp/P.maxHp), 16, P.hp>30?"#66cc44":"#dd4433");
     ctx.strokeStyle="#aa99bb"; ctx.strokeRect(20,20,264,20);
-    if (P.poisonT > 0) text("毒", 296, 37, 18, "#cc66ee");
     text(`回復薬 × ${P.potions} (A)`, 20, 62, 15, "#aaddaa");
     const eqW = weaponById(save.equipped);
     text(`[${TYPE_NAME[eqW.type]}] ${eqW.name}`, 20, 84, 15, eqW.ele?ELE_COLOR[eqW.ele]:"#ffffff");
@@ -1411,7 +1204,7 @@ function HuntScene(quest){
     if (M.enraged && !M.dead) text("怒り狂っている", 930, 54, 13, "#ff8888", "right");
     else if (M.hp < M.maxHp*0.25 && !M.dead) text("弱っている…", 930, 54, 13, "#88ff88", "right");
     // スタンゲージ(打武器のみ表示)
-    if (eqW.type === "blunt" && sp.parts.head && !M.dead){
+    if (eqW.type === "blunt" && !M.dead){
       rect(20, 96, 120, 8, "#222233");
       rect(20, 96, 120*Math.min(1, M.stunGauge/M.stunThresh), 8, "#ffee55");
     }
@@ -1493,14 +1286,6 @@ function HuntScene(quest){
       updatePlayer();
       updateMonster();
       updateProjs();
-
-      // 酸の接触ダメージ(粘獣)
-      if (sp.acid && !M.dead && phase === "fight"){
-        const bb = partBoxes().body;
-        if (bb && overlap(bb, playerBox())){
-          if (--M.acidTick <= 0){ M.acidTick = 30; chipPlayer(sp.acidDmg, "#88ee44"); }
-        } else M.acidTick = 0;
-      }
 
       // カメラ
       cam += ((P.x - 480) - cam) * 0.12;

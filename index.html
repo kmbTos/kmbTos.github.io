@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ゲームコレクション</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background: radial-gradient(circle at 20% 10%, #1b2440, #0a0d18 60%);
+    color: #e8ecf5; min-height: 100vh; padding: 48px 20px;
+  }
+  header { text-align: center; margin-bottom: 40px; }
+  h1 { font-size: 2.2rem; letter-spacing: .05em; }
+  header p { margin-top: 10px; color: #93a0c0; }
+  .grid {
+    display: grid; gap: 22px; max-width: 900px; margin: 0 auto;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+  .card {
+    display: block; text-decoration: none; color: inherit;
+    background: linear-gradient(160deg, #202b4d, #161d33);
+    border: 1px solid #2e3a60; border-radius: 16px; padding: 24px;
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s;
+  }
+  .card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0,0,0,.45);
+    border-color: #5a7bff;
+  }
+  .emoji { font-size: 2.6rem; line-height: 1; }
+  .card h2 { font-size: 1.25rem; margin: 14px 0 8px; }
+  .card p { color: #9aa6c6; font-size: .92rem; line-height: 1.5; }
+  .play { margin-top: 16px; display: inline-block; font-size: .85rem;
+    color: #7d9bff; font-weight: 600; }
+  footer { text-align: center; margin-top: 48px; color:#5c688a; font-size:.8rem; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>🎮 ゲームコレクション</h1>
+    <p>ブラウザでそのまま遊べる自作ゲーム集</p>
+  </header>
+  <main class="grid">
+    <a class="card" href="./makai-hunter/">
+      <div class="emoji">🗡️</div>
+      <h2>魔界ハンター</h2>
+      <p>魔界村 × モンハン。2Dアクションで魔物を狩れ。</p>
+      <span class="play">▶ プレイする</span>
+    </a>
+    <a class="card" href="./music-danmaku/">
+      <div class="emoji">🎵</div>
+      <h2>幻奏弾幕譚</h2>
+      <p>音楽解析で弾幕が生成される東方風シューティング。</p>
+      <span class="play">▶ プレイする</span>
+    </a>
+    <a class="card" href="./gacha-shogi/">
+      <div class="emoji">♟️</div>
+      <h2>ガチャ大将棋</h2>
+      <p>大将棋29種をガチャで集めてランダム布陣で対戦。</p>
+      <span class="play">▶ プレイする</span>
+    </a>
+    <a class="card" href="./kotoba-net/">
+      <div class="emoji">🕸️</div>
+      <h2>ことばのわ</h2>
+      <p>小1向け・言葉の意味ネットワークで遊んで学ぶ。</p>
+      <span class="play">▶ プレイする</span>
+    </a>
+  </main>
+  <footer>Made with ❤️ &middot; GitHub Pages</footer>
+</body>
+</html>

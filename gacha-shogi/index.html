@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>ガチャ大将棋</title>
+<style>
+:root{
+  --bg:#161310; --panel:#282017; --panel2:#332a1e; --tx:#e8ddc8; --dim:#a4937a;
+  --wood:#d9b45f; --wood2:#c9a24e; --line:#7a5b2f; --frame:#4a341a;
+  --gold:#ffd24a; --blue:#4da3ff; --purple:#c07dff; --red:#e04b3a;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-user-select:none;user-select:none;touch-action:manipulation;}
+html,body{height:100%;}
+body{
+  background:radial-gradient(1100px 700px at 50% -10%, #2e2619, var(--bg));
+  color:var(--tx); font-family:"Yu Mincho","Hiragino Mincho ProN","MS Mincho",serif;
+  display:flex; flex-direction:column; align-items:center; overflow-x:hidden;
+}
+.screen{display:none; flex-direction:column; align-items:center; width:100%; max-width:980px; padding:12px;}
+.screen.active{display:flex;}
+h1{font-size:44px; letter-spacing:.18em; margin:26px 0 2px; color:var(--gold);
+   text-shadow:0 0 18px rgba(255,210,74,.35), 0 2px 0 #6b4d0e;}
+.sub{color:var(--dim); margin-bottom:26px; letter-spacing:.2em;}
+.grp{margin:9px 0; display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center;}
+.glabel{width:110px; text-align:right; color:var(--dim); font-size:14px;}
+button{font-family:inherit; color:var(--tx); cursor:pointer;}
+.opt{background:var(--panel); border:1px solid #55432c; border-radius:8px; padding:9px 16px; font-size:15px;}
+.opt.on{background:#5a4116; border-color:var(--gold); color:var(--gold); box-shadow:0 0 10px rgba(255,210,74,.25) inset;}
+.btn{background:linear-gradient(180deg,#7a5a1e,#5a4116); border:1px solid var(--gold); border-radius:10px;
+     padding:13px 34px; font-size:19px; letter-spacing:.12em; margin:8px 4px;}
+.btn:active{transform:translateY(1px);}
+.btn.small{padding:7px 14px; font-size:14px; letter-spacing:.05em;}
+.btn.ghost{background:var(--panel); border-color:#55432c; color:var(--dim);}
+.note{color:var(--dim); font-size:12px; margin-top:16px; text-align:center; line-height:1.9;}
+/* ---- gacha ---- */
+.rates{color:var(--dim); font-size:12px; margin:4px 0 10px;}
+.rates b{font-weight:normal;}
+.rates .rN{color:#aab4b8;} .rates .rR{color:var(--blue);} .rates .rSR{color:var(--purple);} .rates .rSSR{color:var(--gold);}
+#gpanels{display:flex; gap:14px; width:100%; justify-content:center; flex-wrap:wrap;}
+.gpanel{background:var(--panel); border:1px solid #55432c; border-radius:12px; padding:10px 12px 14px; min-width:290px; flex:1; max-width:460px;}
+.gpanel h3{font-size:15px; color:var(--dim); font-weight:normal; margin-bottom:8px; letter-spacing:.1em;}
+.cards{display:flex; flex-wrap:wrap; gap:7px;}
+.card{width:52px; height:68px; border-radius:7px; background:#1d1811; border:1px solid #3a2f20;
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+      opacity:0; transform:rotateY(90deg) scale(.7); transition:all .22s ease;}
+.card.show{opacity:1; transform:none;}
+.card .cchar{font-size:19px; line-height:1.1; text-align:center; color:#f0e6cf;}
+.card .crar{font-size:10px; letter-spacing:.08em;}
+.card.r0{border-color:#5a6165;} .card.r0 .crar{color:#aab4b8;}
+.card.r1{border-color:#2b6db3;} .card.r1 .crar{color:var(--blue);}
+.card.r2{border-color:#8a4fd0; box-shadow:0 0 8px rgba(192,125,255,.35);} .card.r2 .crar{color:var(--purple);}
+.card.r3{border-color:var(--gold); box-shadow:0 0 14px rgba(255,210,74,.55); animation:ssr 1s infinite alternate;}
+.card.r3 .crar{color:var(--gold);} .card.r3 .cchar{color:var(--gold);}
+@keyframes ssr{from{box-shadow:0 0 8px rgba(255,210,74,.35);} to{box-shadow:0 0 20px rgba(255,210,74,.85);}}
+/* ---- game ---- */
+#topbar{display:flex; gap:6px; align-items:center; justify-content:center; flex-wrap:wrap; margin:4px 0 6px; width:100%;}
+#banner{font-size:19px; letter-spacing:.14em; margin:2px 0 6px; height:28px; display:flex; align-items:center; gap:14px;}
+#checkB{color:var(--red); font-weight:bold; animation:blink .5s infinite alternate; display:none;}
+@keyframes blink{from{opacity:1;} to{opacity:.25;}}
+.caps{min-height:26px; width:min(94vw,640px); display:flex; flex-wrap:wrap; gap:3px; align-items:center;
+      font-size:15px; color:#cdbfa4; padding:1px 4px;}
+.caps .cl{color:var(--dim); font-size:12px; margin-right:5px;}
+#board{
+  display:grid; background:linear-gradient(160deg,var(--wood),var(--wood2));
+  border:7px solid var(--frame); border-radius:6px; box-shadow:0 8px 30px rgba(0,0,0,.6);
+  width:min(94vw, calc(100vh - 230px), 640px); aspect-ratio:1;
+}
+.cell{border:1px solid var(--line); position:relative; display:flex; align-items:center; justify-content:center;}
+.cell.zone{background:rgba(150,50,20,.10);}
+.cell.last{background:rgba(255,150,30,.30);}
+.cell.sel{outline:3px solid var(--blue); outline-offset:-3px; z-index:2;}
+.cell.mv::after{content:""; position:absolute; width:28%; height:28%; border-radius:50%; background:rgba(20,140,60,.55);}
+.cell.cap::after{content:""; position:absolute; width:82%; height:82%; border-radius:8%; border:3px solid rgba(210,40,40,.75);}
+.cell.chk{animation:chk .5s infinite alternate;}
+@keyframes chk{from{background:rgba(220,40,30,.15);} to{background:rgba(220,40,30,.5);}}
+.pc{width:96%; height:99%; display:block;}
+.pc svg{width:100%; height:100%; display:block;}
+.pc.down{transform:rotate(180deg);}
+/* ---- tooltip ---- */
+#tip{position:fixed; display:none; z-index:45; background:rgba(30,23,14,.96); border:1px solid #8a6a30;
+     border-radius:10px; padding:9px 12px; pointer-events:none; box-shadow:0 4px 18px rgba(0,0,0,.65);}
+#tip .tname{font-size:16px; color:#f0e6cf;}
+#tip .ty{font-size:11px; color:var(--dim); margin-bottom:4px;}
+#tip .tpro{font-size:11px; color:#d8905c; margin-top:4px;}
+#tip .mini.rot{transform:rotate(180deg);}
+.pc.pr span{color:#b81f1f;}
+/* ---- modal ---- */
+#modal{position:fixed; inset:0; background:rgba(0,0,0,.66); display:none; align-items:center; justify-content:center; z-index:50;}
+#modal.active{display:flex;}
+#mbox{background:var(--panel2); border:1px solid var(--gold); border-radius:14px; padding:26px 34px; text-align:center;
+      max-width:88vw; box-shadow:0 0 40px rgba(0,0,0,.8);}
+#mbody{font-size:20px; line-height:1.8; margin-bottom:14px; letter-spacing:.08em;}
+#mbody .big{font-size:30px; color:var(--gold); letter-spacing:.15em;}
+#mbody .sm{font-size:14px; color:var(--dim);}
+/* ---- help ---- */
+#help{position:fixed; inset:0; background:rgba(10,8,5,.94); display:none; z-index:60; overflow-y:auto; padding:20px 10px;}
+#help.active{display:block;}
+#help .inner{max-width:960px; margin:0 auto;}
+#help h2{color:var(--gold); text-align:center; margin-bottom:6px; letter-spacing:.2em;}
+#help .legend{text-align:center; color:var(--dim); font-size:13px; margin-bottom:14px; line-height:1.8;}
+#hlist{display:flex; flex-wrap:wrap; gap:10px; justify-content:center;}
+.hent{background:var(--panel); border:1px solid #55432c; border-radius:10px; padding:8px 10px; width:150px;}
+.hent .hname{font-size:15px; margin-bottom:2px;}
+.hent .hy{color:var(--dim); font-size:10px;}
+.hent .hpro{font-size:11px; color:#d8905c; margin-top:3px;}
+.hent .htag{font-size:10px; padding:1px 5px; border-radius:4px; margin-left:5px;}
+.htag.r0{background:#39424a; color:#aab4b8;} .htag.r1{background:#173a5e; color:var(--blue);}
+.htag.r2{background:#3c2160; color:var(--purple);} .htag.r3{background:#5e4708; color:var(--gold);}
+.mini{display:grid; grid-template-columns:repeat(5,17px); grid-auto-rows:17px; gap:1px; margin-top:5px;}
+.mini div{background:#20191153; border:1px solid #453519; font-size:11px; display:flex; align-items:center; justify-content:center; color:#ffcf7d;}
+.mini .ctr{background:#6b5424; color:#fff; font-size:10px;}
+#help .close{display:block; margin:18px auto;}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+<linearGradient id="woodg" x1="0" y1="0" x2="0.85" y2="1">
+<stop offset="0" stop-color="#f6dfa8"/><stop offset="0.55" stop-color="#e3bd72"/><stop offset="1" stop-color="#c69a4a"/>
+</linearGradient></defs></svg>
+<div id="tip"></div>
+
+<!-- ============ タイトル ============ -->
+<div id="scr-title" class="screen active">
+  <h1>ガチャ大将棋</h1>
+  <div class="sub">〜 大将棋の駒で運命の布陣 〜</div>
+  <div class="grp"><span class="glabel">盤サイズ</span>
+    <button class="opt" data-k="size" data-v="5">5×5 (駒6)</button>
+    <button class="opt" data-k="size" data-v="7">7×7 (駒10)</button>
+    <button class="opt on" data-k="size" data-v="9">9×9 (駒18)</button>
+  </div>
+  <div class="grp"><span class="glabel">モード</span>
+    <button class="opt on" data-k="mode" data-v="cpu">CPU対戦</button>
+    <button class="opt" data-k="mode" data-v="2p">2P対戦</button>
+  </div>
+  <div class="grp cpuonly"><span class="glabel">CPUの強さ</span>
+    <button class="opt" data-k="diff" data-v="0">よわい</button>
+    <button class="opt on" data-k="diff" data-v="1">ふつう</button>
+    <button class="opt" data-k="diff" data-v="2">つよい</button>
+  </div>
+  <div class="grp cpuonly"><span class="glabel">あなたの手番</span>
+    <button class="opt on" data-k="pside" data-v="0">▲先手</button>
+    <button class="opt" data-k="pside" data-v="1">△後手</button>
+  </div>
+  <div class="grp"><span class="glabel">ガチャ方式</span>
+    <button class="opt on" data-k="mirror" data-v="0">完全ランダム</button>
+    <button class="opt" data-k="mirror" data-v="1">ミラー(同駒対称)</button>
+  </div>
+  <div class="grp" style="margin-top:18px;">
+    <button class="btn" id="bGacha">ガチャを回す!</button>
+    <button class="btn ghost" id="bHelp1">駒の動き一覧</button>
+  </div>
+  <div class="note">
+    玉将のみ固定、残りの駒は大将棋全29種からガチャで抽選しランダム配置。<br>
+    駒には動き(赤印)と読み仮名を刻印。駒にマウスを乗せると詳細を表示します。<br>
+    持ち駒(打ち)はありません(大将棋準拠)。獅子は簡易ルール(2マス以内へ自由移動・飛越可)。<br>
+    成りは簡易版:多くの駒は金将に、飛→龍王、角→龍馬、麒麟→獅子、鳳凰→奔王。
+  </div>
+</div>
+
+<!-- ============ ガチャ ============ -->
+<div id="scr-gacha" class="screen">
+  <h1 style="font-size:30px;">駒ガチャ結果</h1>
+  <div class="rates">排出率 <b class="rN">N 50%</b> / <b class="rR">R 30%</b> / <b class="rSR">SR 15%</b> / <b class="rSSR">SSR 5%</b></div>
+  <div id="gpanels"></div>
+  <div class="grp" style="margin-top:16px;">
+    <button class="btn" id="bStart">この布陣で対局開始</button>
+    <button class="btn ghost" id="bReroll">引き直す</button>
+    <button class="btn ghost" id="bTitle1">タイトルへ</button>
+  </div>
+</div>
+
+<!-- ============ 対局 ============ -->
+<div id="scr-game" class="screen">
+  <div id="topbar">
+    <button class="btn small ghost" id="bTitle2">タイトル</button>
+    <button class="btn small ghost" id="bUndo">待った</button>
+    <button class="btn small ghost" id="bResign">投了</button>
+    <button class="btn small ghost" id="bHelp2">駒一覧</button>
+    <button class="btn small ghost" id="bMute">🔊</button>
+  </div>
+  <div id="banner"><span id="turnB"></span><span id="checkB">王手!!</span></div>
+  <div class="caps" id="capTop"><span class="cl">討取:</span></div>
+  <div id="board"></div>
+  <div class="caps" id="capBot"><span class="cl">討取:</span></div>
+</div>
+
+<!-- ============ モーダル / ヘルプ ============ -->
+<div id="modal"><div id="mbox"><div id="mbody"></div><div id="mbtns"></div></div></div>
+<div id="help"><div class="inner">
+  <h2>駒の動き一覧(大将棋29種)</h2>
+  <div class="legend">●=1マス移動 ○=跳び先(間の駒を飛び越え可) 矢印=走り(何マスでも)<br>
+  猛牛は2マスまで走り(飛越不可)。獅子は2マス以内の全マスへ移動可(飛越可・簡易ルール)。図は▲先手視点(上が前)。<br>
+  盤上の駒にも同じ印を刻印:●=1歩 / 赤線矢印=走り / ○=跳び / ●●=2マスまで / 点線円=2マス以内自由(獅子)。</div>
+  <div id="hlist"></div>
+  <button class="btn close" id="bHelpClose">閉じる</button>
+</div></div>
+
+<script>
+'use strict';
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const ORTH=[[0,-1],[0,1],[1,0],[-1,0]], DIAG=[[1,-1],[-1,-1],[1,1],[-1,1]], O8=ORTH.concat(DIAG);
+
+/* ================= 駒定義(▲先手視点 / dy:-1が前) ================= */
+const DEF={
+'玉将':{c:'玉',y:'ぎょくしょう',val:100000,rar:-1,pro:null,steps:O8},
+'歩兵':{c:'歩',y:'ふひょう',val:100,rar:0,pro:'金将',steps:[[0,-1]]},
+'仲人':{c:'仲',y:'ちゅうにん',val:150,rar:0,pro:'金将',steps:[[0,-1],[0,1]]},
+'石将':{c:'石',y:'せきしょう',val:150,rar:0,pro:'金将',steps:[[1,-1],[-1,-1]]},
+'鉄将':{c:'鉄',y:'てっしょう',val:200,rar:0,pro:'金将',steps:[[0,-1],[1,-1],[-1,-1]]},
+'嗔猪':{c:'猪',y:'しんちょ',val:200,rar:0,pro:'金将',steps:[[0,-1],[1,0],[-1,0]]},
+'猫刄':{c:'猫',y:'みょうじん',val:200,rar:0,pro:'金将',steps:DIAG},
+'香車':{c:'香',y:'きょうしゃ',val:300,rar:0,pro:'金将',slides:[[0,-1]]},
+'桂馬':{c:'桂',y:'けいま',val:300,rar:0,pro:'金将',jumps:[[1,-2],[-1,-2]]},
+'銅将':{c:'銅',y:'どうしょう',val:300,rar:1,pro:'金将',steps:[[0,-1],[1,-1],[-1,-1],[0,1]]},
+'悪狼':{c:'狼',y:'あくろう',val:350,rar:1,pro:'金将',steps:[[0,-1],[1,-1],[-1,-1],[1,0],[-1,0]]},
+'反車':{c:'反',y:'へんしゃ',val:400,rar:1,pro:'金将',slides:[[0,-1],[0,1]]},
+'銀将':{c:'銀',y:'ぎんしょう',val:400,rar:1,pro:'金将',steps:[[0,-1],[1,-1],[-1,-1],[1,1],[-1,1]]},
+'猛豹':{c:'豹',y:'もうひょう',val:400,rar:1,pro:'金将',steps:[[0,-1],[1,-1],[-1,-1],[0,1],[1,1],[-1,1]]},
+'盲虎':{c:'虎',y:'もうこ',val:450,rar:1,pro:'金将',steps:[[1,-1],[-1,-1],[1,0],[-1,0],[0,1],[1,1],[-1,1]]},
+'金将':{c:'金',y:'きんしょう',val:500,rar:1,pro:null,steps:[[0,-1],[1,-1],[-1,-1],[1,0],[-1,0],[0,1]]},
+'酔象':{c:'象',y:'すいぞう',val:500,rar:1,pro:null,steps:[[0,-1],[1,-1],[-1,-1],[1,0],[-1,0],[1,1],[-1,1]]},
+'猛牛':{c:'猛牛',y:'もうぎゅう',val:550,rar:2,pro:'金将',slides:ORTH,range:2},
+'飛龍':{c:'飛龍',y:'ひりゅう',val:600,rar:2,pro:'金将',jumps:[[1,-1],[-1,-1],[1,1],[-1,1],[2,-2],[-2,-2],[2,2],[-2,2]]},
+'竪行':{c:'竪行',y:'しゅぎょう',val:650,rar:2,pro:'金将',slides:[[0,-1],[0,1]],steps:[[1,0],[-1,0]]},
+'横行':{c:'横行',y:'おうぎょう',val:650,rar:2,pro:'金将',slides:[[1,0],[-1,0]],steps:[[0,-1],[0,1]]},
+'麒麟':{c:'麒麟',y:'きりん',val:750,rar:2,pro:'獅子',steps:DIAG,jumps:[[0,-2],[0,2],[2,0],[-2,0]]},
+'鳳凰':{c:'鳳凰',y:'ほうおう',val:750,rar:2,pro:'奔王',steps:ORTH,jumps:[[2,-2],[-2,-2],[2,2],[-2,2]]},
+'角行':{c:'角',y:'かくぎょう',val:850,rar:2,pro:'龍馬',slides:DIAG},
+'飛車':{c:'飛',y:'ひしゃ',val:950,rar:2,pro:'龍王',slides:ORTH},
+'龍馬':{c:'龍馬',y:'りゅうめ',val:1150,rar:3,pro:null,slides:DIAG,steps:ORTH},
+'龍王':{c:'龍王',y:'りゅうおう',val:1250,rar:3,pro:null,slides:ORTH,steps:DIAG},
+'奔王':{c:'奔王',y:'ほんのう',val:1350,rar:3,pro:null,slides:O8},
+'獅子':{c:'獅子',y:'しし',val:1600,rar:3,pro:null,area:2},
+};
+const POOLS=[[],[],[],[]];
+for(const t in DEF){ if(DEF[t].rar>=0) POOLS[DEF[t].rar].push(t); }
+const RWEIGHT=[50,30,15,5];
+const BOARDS={5:{place:2,zone:1,draws:6},7:{place:2,zone:2,draws:10},9:{place:3,zone:3,draws:18}};
+
+/* ================= サウンド ================= */
+let AC=null, muted=false;
+function ac(){ if(!AC){ try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){} } return AC; }
+function tone(f,dur,type,vol,delay){
+  if(muted) return; const a=ac(); if(!a) return;
+  try{
+    const t=a.currentTime+(delay||0), o=a.createOscillator(), g=a.createGain();
+    o.type=type||'sine'; o.frequency.value=f;
+    g.gain.setValueAtTime(vol||.12,t); g.gain.exponentialRampToValueAtTime(.001,t+dur);
+    o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+dur+.02);
+  }catch(e){}
+}
+const sndMove =()=>{tone(180,.06,'square',.22); tone(1500,.03,'triangle',.07);};
+const sndCap  =()=>{tone(320,.07,'square',.22); tone(140,.13,'square',.16,.05);};
+const sndCheck=()=>{tone(880,.14,'sawtooth',.09); tone(932,.16,'sawtooth',.09,.15);};
+const sndWin  =()=>{[523,659,784,1047].forEach((f,i)=>tone(f,.28,'triangle',.14,i*.13));};
+const sndLose =()=>{[392,330,262].forEach((f,i)=>tone(f,.3,'triangle',.12,i*.18));};
+const sndTick =r=>{ if(r>=3){[880,1109,1319,1760].forEach((f,i)=>tone(f,.2,'triangle',.12,i*.08));}
+                    else if(r===2){tone(740,.12,'triangle',.1); tone(1109,.15,'triangle',.1,.07);}
+                    else tone(400+r*160,.05,'square',.08); };
+
+/* ================= 設定 / 状態 ================= */
+const cfg={size:9, mode:'cpu', diff:1, pside:0, mirror:0};
+let draws=null;   // [先手の抽選結果[], 後手の...]
+let state=null;
+let cells=[];     // 表示セルDOM
+const cpuSide=()=>1-cfg.pside;
+
+/* ================= 盤ユーティリティ ================= */
+function targetsOf(bd,N,i){
+  const p=bd[i], d=DEF[p.t], x=i%N, y=(i-x)/N, s=(p.o===0)?1:-1, out=[];
+  const add=(tx,ty)=>{
+    if(tx<0||ty<0||tx>=N||ty>=N) return false;
+    const q=bd[ty*N+tx];
+    if(q&&q.o===p.o) return false;
+    out.push(ty*N+tx); return !q;
+  };
+  if(d.steps) for(const v of d.steps) add(x+v[0]*s, y+v[1]*s);
+  if(d.jumps) for(const v of d.jumps) add(x+v[0]*s, y+v[1]*s);
+  if(d.slides) for(const v of d.slides){
+    let tx=x, ty=y, r=d.range||99;
+    while(r-->0){ tx+=v[0]*s; ty+=v[1]*s; if(!add(tx,ty)) break; }
+  }
+  if(d.area){ const a=d.area;
+    for(let dy=-a;dy<=a;dy++) for(let dx=-a;dx<=a;dx++){ if(dx||dy) add(x+dx,y+dy); }
+  }
+  return out;
+}
+function kingSq(bd,N,o){ for(let i=0;i<N*N;i++){ const p=bd[i]; if(p&&p.o===o&&p.t==='玉将') return i; } return -1; }
+function isAttacked(bd,N,sq,by){
+  if(sq<0) return false;
+  for(let i=0;i<N*N;i++){ const p=bd[i];
+    if(p&&p.o===by && targetsOf(bd,N,i).indexOf(sq)>=0) return true; }
+  return false;
+}
+function inZone(y,o,N,z){ return o===0 ? y<z : y>=N-z; }
+function hasFuture(t,o,x,y,N){ // 空盤で1手でも動けるか(行き所のない駒判定)
+  const d=DEF[t], s=(o===0)?1:-1, ok=(tx,ty)=>tx>=0&&ty>=0&&tx<N&&ty<N;
+  if(d.area) return true;
+  if(d.steps) for(const v of d.steps) if(ok(x+v[0]*s,y+v[1]*s)) return true;
+  if(d.jumps) for(const v of d.jumps) if(ok(x+v[0]*s,y+v[1]*s)) return true;
+  if(d.slides) for(const v of d.slides) if(ok(x+v[0]*s,y+v[1]*s)) return true;
+  return false;
+}
+function make(bd,m){
+  const mv=bd[m.from], rec={cap:bd[m.to], t:mv.t, pr:mv.pr};
+  bd[m.to]=mv; bd[m.from]=null;
+  if(m.pr){ mv.t=DEF[mv.t].pro; mv.pr=true; }
+  return rec;
+}
+function unmake(bd,m,rec){
+  const mv=bd[m.to]; mv.t=rec.t; mv.pr=rec.pr;
+  bd[m.from]=mv; bd[m.to]=rec.cap;
+}
+function legalMovesAll(bd,N,o){
+  const z=BOARDS[N].zone, res=[];
+  for(let i=0;i<N*N;i++){
+    const p=bd[i]; if(!p||p.o!==o) continue;
+    const fy=(i/N)|0;
+    for(const to of targetsOf(bd,N,i)){
+      const ty=(to/N)|0, tx=to%N, d=DEF[p.t];
+      let vars;
+      if(d.pro && (inZone(fy,o,N,z)||inZone(ty,o,N,z)))
+        vars = hasFuture(p.t,o,tx,ty,N) ? [false,true] : [true];
+      else vars=[false];
+      for(const pr of vars){
+        const m={from:i,to:to,pr:pr}, rec=make(bd,m);
+        const ok=!isAttacked(bd,N,kingSq(bd,N,o),1-o);
+        unmake(bd,m,rec);
+        if(ok) res.push(m);
+      }
+    }
+  }
+  return res;
+}
+
+/* ================= CPU (αβ探索) ================= */
+const KV=100000;
+function evalBd(bd,N,me){
+  let sc=0;
+  for(let i=0;i<N*N;i++){ const p=bd[i]; if(!p) continue;
+    const y=(i/N)|0;
+    let v=DEF[p.t].val + (p.t==='玉将'?0:(p.o===0?N-1-y:y)*2);
+    sc += (p.o===me? v : -v);
+  }
+  return sc;
+}
+function pseudo(bd,N,o){
+  const z=BOARDS[N].zone, res=[];
+  for(let i=0;i<N*N;i++){
+    const p=bd[i]; if(!p||p.o!==o) continue;
+    const fy=(i/N)|0, d=DEF[p.t];
+    for(const to of targetsOf(bd,N,i)){
+      const ty=(to/N)|0;
+      const pr=!!(d.pro && (inZone(fy,o,N,z)||inZone(ty,o,N,z)));
+      res.push({from:i,to:to,pr:pr,vic:bd[to]?DEF[bd[to].t].val:0});
+    }
+  }
+  res.sort((a,b)=>b.vic-a.vic);
+  return res;
+}
+function search(bd,N,o,depth,alpha,beta){
+  if(depth<=0) return evalBd(bd,N,o);
+  const ms=pseudo(bd,N,o);
+  if(!ms.length) return -KV-depth;
+  let best=-Infinity;
+  for(const m of ms){
+    if(m.vic>=KV) return KV+depth;
+    const rec=make(bd,m);
+    const sc=-search(bd,N,1-o,depth-1,-beta,-alpha);
+    unmake(bd,m,rec);
+    if(sc>best){ best=sc; if(sc>alpha)alpha=sc; if(alpha>=beta)break; }
+  }
+  return best;
+}
+function cpuPick(){
+  const {bd,N,turn}=state;
+  const depth=[1,2,3][cfg.diff], jitter=[300,60,0][cfg.diff];
+  const ms=state.legal.slice();
+  ms.sort((a,b)=>(bd[b.to]?DEF[bd[b.to].t].val:0)-(bd[a.to]?DEF[bd[a.to].t].val:0));
+  let best=null, bs=-Infinity, alpha=-Infinity;
+  for(const m of ms){
+    const rec=make(bd,m);
+    let sc=-search(bd,N,1-turn,depth-1,-Infinity, jitter?Infinity:-alpha);
+    unmake(bd,m,rec);
+    sc+=Math.random()*jitter;
+    if(sc>bs){ bs=sc; best=m; if(!jitter&&sc>alpha) alpha=sc; }
+  }
+  return best;
+}
+
+/* ================= ガチャ / 配置 ================= */
+function rollOne(){
+  let r=Math.random()*100, ri=0;
+  for(let i=0;i<4;i++){ if(r<RWEIGHT[i]){ ri=i; break; } r-=RWEIGHT[i]; }
+  const pool=POOLS[ri];
+  return pool[(Math.random()*pool.length)|0];
+}
+function doGacha(){
+  const n=BOARDS[cfg.size].draws;
+  const a=[]; for(let i=0;i<n;i++) a.push(rollOne());
+  draws = cfg.mirror ? [a, a.slice()] : [a, (()=>{const b=[];for(let i=0;i<n;i++)b.push(rollOne());return b;})()];
+  renderGacha();
+}
+function sideName(o){
+  const mk=o?'△':'▲', nm=o?'後手':'先手';
+  if(cfg.mode==='cpu') return mk+nm+(o===cfg.pside?'(あなた)':'(CPU)');
+  return mk+nm;
+}
+function renderGacha(){
+  const gp=$('#gpanels'); gp.innerHTML='';
+  const panels = cfg.mirror ? [[0,'両者共通 '+ (cfg.mode==='cpu'?'(ミラー配置)':'(ミラー配置)')]] : [[0,sideName(0)],[1,sideName(1)]];
+  let delay=0;
+  for(const [o,label] of panels){
+    const pn=document.createElement('div'); pn.className='gpanel';
+    pn.innerHTML='<h3>'+label+'</h3>';
+    const cs=document.createElement('div'); cs.className='cards'; pn.appendChild(cs);
+    for(const t of draws[o]){
+      const d=DEF[t], card=document.createElement('div');
+      card.className='card r'+d.rar;
+      card.innerHTML='<div class="cchar">'+(d.c.length>1? d.c[0]+'<br>'+d.c[1] : d.c)+'</div><div class="crar">'+['N','R','SR','SSR'][d.rar]+'</div>';
+      card.addEventListener('mousemove',e=>{ tipEl.innerHTML=tipHTML(t,false,false); placeTip(e); });
+      card.addEventListener('mouseleave',hideTip);
+      cs.appendChild(card);
+      const r=d.rar;
+      setTimeout(()=>{ card.classList.add('show'); sndTick(r); }, delay+=90);
+    }
+    gp.appendChild(pn);
+  }
+}
+function buildSetup(){
+  const N=cfg.size, P=BOARDS[N].place, mid=(N-1)>>1;
+  for(let tries=0;tries<300;tries++){
+    const bd=new Array(N*N).fill(null);
+    bd[(N-1)*N+mid]={t:'玉将',o:0,pr:false};
+    bd[mid]={t:'玉将',o:1,pr:false};
+    for(let o=0;o<2;o++){
+      const sqs=[];
+      for(let r=0;r<P;r++) for(let x=0;x<N;x++){
+        const y = o===0 ? N-1-r : r, ix=y*N+x;
+        if(!bd[ix]) sqs.push(ix);
+      }
+      if(cfg.mirror && o===1){
+        // 先手配置の点対称コピー
+        for(let i=0;i<N*N;i++){ const p=bd[i];
+          if(p&&p.o===0&&p.t!=='玉将') bd[N*N-1-i]={t:p.t,o:1,pr:false}; }
+        continue;
+      }
+      for(let k=sqs.length-1;k>0;k--){ const j=(Math.random()*(k+1))|0; const tmp=sqs[k]; sqs[k]=sqs[j]; sqs[j]=tmp; }
+      draws[o].forEach((t,k)=>{ bd[sqs[k]]={t:t,o:o,pr:false}; });
+    }
+    if(isAttacked(bd,N,kingSq(bd,N,0),1)) continue;
+    if(isAttacked(bd,N,kingSq(bd,N,1),0)) continue;
+    if(!legalMovesAll(bd,N,0).length) continue;
+    if(!legalMovesAll(bd,N,1).length) continue;
+    return bd;
+  }
+  return null; // 実質起こらない
+}
+
+/* ================= 対局進行 ================= */
+function startGame(fromBd){
+  const N=cfg.size;
+  const bd = fromBd ? fromBd.map(p=>p?{t:p.t,o:p.o,pr:p.pr}:null) : buildSetup();
+  state={
+    bd:bd, N:N, turn:0, caps:[[],[]], last:null, sel:null,
+    over:false, thinking:false, hist:[],
+    flip:(cfg.mode==='cpu'&&cfg.pside===1),
+    initial: bd.map(p=>p?{t:p.t,o:p.o,pr:p.pr}:null),
+  };
+  buildBoardDOM();
+  computeTurn();
+  showScreen('scr-game');
+  render();
+  maybeCpu();
+}
+function computeTurn(){
+  const {bd,N,turn}=state;
+  state.legal=legalMovesAll(bd,N,turn);
+  state.check=isAttacked(bd,N,kingSq(bd,N,turn),1-turn);
+}
+function snap(){
+  return { bd:state.bd.map(p=>p?{t:p.t,o:p.o,pr:p.pr}:null),
+           turn:state.turn, caps:[state.caps[0].slice(),state.caps[1].slice()], last:state.last };
+}
+function restore(s){
+  state.bd=s.bd; state.turn=s.turn; state.caps=s.caps; state.last=s.last;
+  state.sel=null; state.over=false;
+}
+function execMove(m){
+  const {bd}=state;
+  state.hist.push(snap());
+  const cap=bd[m.to];
+  make(bd,m);
+  if(cap){ state.caps[state.turn].push(cap.t); sndCap(); } else sndMove();
+  state.last=[m.from,m.to]; state.sel=null; hideTip();
+  if(cap&&cap.t==='玉将'){ render(); gameOver(state.turn,'玉を討ち取りました'); return; }
+  state.turn^=1;
+  computeTurn();
+  render();
+  if(!state.legal.length){
+    const w=1-state.turn;
+    gameOver(w, state.check?'詰み':'手詰まり');
+    return;
+  }
+  if(state.check) sndCheck();
+  maybeCpu();
+}
+function maybeCpu(){
+  if(cfg.mode!=='cpu'||!state||state.over||state.turn!==cpuSide()) return;
+  state.thinking=true; updateBanner();
+  setTimeout(()=>{
+    const m=cpuPick();
+    state.thinking=false;
+    if(m) execMove(m); else gameOver(1-state.turn,'手詰まり');
+  }, 350);
+}
+function gameOver(winner,reason){
+  state.over=true;
+  let head;
+  if(cfg.mode==='cpu') head = winner===cfg.pside ? 'あなたの勝ち!' : 'CPUの勝ち…';
+  else head = (winner?'△後手':'▲先手')+'の勝ち!';
+  (cfg.mode!=='cpu'||winner===cfg.pside)?sndWin():sndLose();
+  modal('<div class="big">'+head+'</div><div class="sm">'+reason+'</div>',[
+    ['もう一度ガチャ',()=>{ doGacha(); showScreen('scr-gacha'); }],
+    ['同じ布陣で再戦',()=>{ startGame(state.initial); }],
+    ['タイトルへ',()=>showScreen('scr-title')],
+  ]);
+}
+function undo(){
+  if(!state||state.thinking||state.over||!state.hist.length) return;
+  let s=state.hist.pop();
+  if(cfg.mode==='cpu'){ while(s.turn!==cfg.pside && state.hist.length) s=state.hist.pop(); }
+  restore(s); computeTurn(); render(); maybeCpu();
+}
+
+/* ================= 描画 ================= */
+function showScreen(id){ $$('.screen').forEach(e=>e.classList.remove('active')); $('#'+id).classList.add('active'); hideTip(); }
+function buildBoardDOM(){
+  const N=state.N, b=$('#board');
+  b.innerHTML=''; b.style.gridTemplateColumns='repeat('+N+',1fr)'; b.style.gridTemplateRows='repeat('+N+',1fr)';
+  cells=[];
+  for(let di=0;di<N*N;di++){
+    const c=document.createElement('div'); c.className='cell'; c.dataset.di=di;
+    c.addEventListener('click',()=>onCell(di));
+    c.addEventListener('mousemove',e=>{
+      if(!state) return hideTip();
+      const bi=state.flip? state.N*state.N-1-di : di, p=state.bd[bi];
+      if(!p) return hideTip();
+      tipEl.innerHTML=tipHTML(p.t, p.pr, p.o!==(state.flip?1:0));
+      placeTip(e);
+    });
+    c.addEventListener('mouseleave',hideTip);
+    b.appendChild(c); cells.push(c);
+  }
+}
+/* --- 駒SVG(動きの刻印+読み仮名つき) --- */
+const svgCache={};
+function pieceSVG(t,pr){
+  const key=t+(pr?'!':'');
+  if(svgCache[key]) return svgCache[key];
+  const d=DEF[t], M='#a5261a', CX=50, CY=62;
+  let mk='';
+  const dot =(x,y)=>{ mk+='<circle cx="'+x+'" cy="'+y+'" r="4" fill="'+M+'"/>'; };
+  const ring=(x,y)=>{ mk+='<circle cx="'+x+'" cy="'+y+'" r="4.2" fill="none" stroke="'+M+'" stroke-width="1.8"/>'; };
+  if(d.steps) for(const v of d.steps) dot(CX+v[0]*26, CY+v[1]*27);
+  if(d.jumps) for(const v of d.jumps){
+    const m=Math.max(Math.abs(v[0]),Math.abs(v[1]));
+    if(m===1) dot(CX+v[0]*26, CY+v[1]*27);
+    else ring(CX+v[0]/2*33, CY+v[1]/2*35);
+  }
+  if(d.slides) for(const v of d.slides){
+    if(d.range===2){ dot(CX+v[0]*20, CY+v[1]*21); dot(CX+v[0]*32, CY+v[1]*34); continue; }
+    const x1=CX+v[0]*11, y1=CY+v[1]*12, x2=CX+v[0]*30, y2=CY+v[1]*32;
+    mk+='<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="'+M+'" stroke-width="2.2"/>';
+    const L=Math.hypot(v[0],v[1]), nx=v[0]/L, ny=v[1]/L, px=-ny, py=nx;
+    mk+='<polygon fill="'+M+'" points="'+(x2+nx*7)+','+(y2+ny*7)+' '+(x2+px*4)+','+(y2+py*4)+' '+(x2-px*4)+','+(y2-py*4)+'"/>';
+  }
+  if(d.area) mk+='<circle cx="'+CX+'" cy="'+CY+'" r="33" fill="none" stroke="'+M+'" stroke-width="2.2" stroke-dasharray="5 4"/>';
+  const kc = pr? '#b81f1f' : '#2b1c07';
+  const halo='text-anchor="middle" font-weight="bold" font-family="serif" stroke="#eed9a2" stroke-width="3" paint-order="stroke" fill="'+kc+'"';
+  let txt='';
+  if(d.c.length>1)
+    txt='<text x="50" y="53" font-size="26" '+halo+'>'+d.c[0]+'</text>'+
+        '<text x="50" y="82" font-size="26" '+halo+'>'+d.c[1]+'</text>';
+  else
+    txt='<text x="50" y="75" font-size="37" '+halo+'>'+d.c+'</text>';
+  const yomi='<text x="50" y="106" font-size="9" text-anchor="middle" font-family="serif" fill="#6b4a16">'+d.y+'</text>';
+  return svgCache[key]=
+    '<svg viewBox="0 0 100 112" xmlns="http://www.w3.org/2000/svg">'+
+    '<polygon points="50,2 87,26 97,110 3,110 13,26" fill="url(#woodg)" stroke="#8a6a30" stroke-width="1.5"/>'+
+    mk+txt+yomi+'</svg>';
+}
+function pieceHTML(p){
+  const bottomOwner=state.flip?1:0;
+  return '<div class="pc'+(p.o!==bottomOwner?' down':'')+'">'+pieceSVG(p.t,p.pr)+'</div>';
+}
+/* --- ツールチップ --- */
+const tipEl=$('#tip');
+function tipHTML(t,pr,rot){
+  const d=DEF[t];
+  const tag=d.rar>=0? ' <span class="htag r'+d.rar+'">'+['N','R','SR','SSR'][d.rar]+'</span>':'';
+  return '<div class="tname">'+t+tag+'</div>'+
+         '<div class="ty">'+d.y+(pr?' (成)':'')+'</div>'+
+         '<div class="mini'+(rot?' rot':'')+'">'+miniCells(t)+'</div>'+
+         '<div class="tpro">'+(d.pro?'成り → '+d.pro:'成りなし')+'</div>';
+}
+function placeTip(e){
+  tipEl.style.display='block';
+  const r=tipEl.getBoundingClientRect();
+  let x=e.clientX+16, y=e.clientY+14;
+  if(x+r.width>innerWidth-6)  x=e.clientX-r.width-14;
+  if(y+r.height>innerHeight-6) y=e.clientY-r.height-14;
+  tipEl.style.left=x+'px'; tipEl.style.top=y+'px';
+}
+function hideTip(){ tipEl.style.display='none'; }
+function render(){
+  if(!state) return;
+  const {bd,N,sel,last,check,turn}=state, z=BOARDS[N].zone;
+  const kIdx = check? kingSq(bd,N,turn) : -1;
+  const mvs = sel!=null ? state.legal.filter(m=>m.from===sel) : [];
+  for(let di=0;di<N*N;di++){
+    const bi = state.flip? N*N-1-di : di;
+    const cell=cells[di], p=bd[bi], y=(bi/N)|0;
+    let cls='cell';
+    if(y<z||y>=N-z) cls+=' zone';
+    if(last&&(bi===last[0]||bi===last[1])) cls+=' last';
+    if(sel===bi) cls+=' sel';
+    if(mvs.some(m=>m.to===bi)) cls+= p?' cap':' mv';
+    if(bi===kIdx) cls+=' chk';
+    cell.className=cls;
+    cell.innerHTML = p? pieceHTML(p) : '';
+  }
+  const topO = state.flip?0:1, botO = state.flip?1:0;
+  renderCaps($('#capTop'),topO); renderCaps($('#capBot'),botO);
+  updateBanner();
+}
+function renderCaps(el,o){
+  el.innerHTML='<span class="cl">'+(o?'△':'▲')+'討取:</span>'+
+    state.caps[o].map(t=>DEF[t].c).join('・');
+}
+function updateBanner(){
+  const tb=$('#turnB');
+  if(state.over){ tb.textContent='対局終了'; }
+  else if(cfg.mode==='cpu'){
+    tb.textContent = state.thinking? 'CPU思考中…' :
+      (state.turn===cfg.pside? (cfg.pside?'△':'▲')+'あなたの番' : 'CPUの番');
+  } else tb.textContent = state.turn? '△後手の番' : '▲先手の番';
+  $('#checkB').style.display = (!state.over&&state.check)? 'inline':'none';
+}
+function onCell(di){
+  if(!state||state.over||state.thinking) return;
+  if(cfg.mode==='cpu'&&state.turn!==cfg.pside) return;
+  const bi = state.flip? state.N*state.N-1-di : di;
+  const p=state.bd[bi];
+  if(state.sel!=null){
+    const cands=state.legal.filter(m=>m.from===state.sel&&m.to===bi);
+    if(cands.length===1){ execMove(cands[0]); return; }
+    if(cands.length>1){
+      modal('成りますか?',[
+        ['成る',()=>execMove(cands.find(c=>c.pr))],
+        ['成らず',()=>execMove(cands.find(c=>!c.pr))],
+      ]);
+      return;
+    }
+  }
+  state.sel = (p&&p.o===state.turn&&bi!==state.sel)? bi : null;
+  render();
+}
+
+/* ================= モーダル ================= */
+function modal(html,btns){
+  $('#mbody').innerHTML=html;
+  const mb=$('#mbtns'); mb.innerHTML='';
+  for(const [label,cb] of btns){
+    const b=document.createElement('button'); b.className='btn small'; b.style.margin='4px';
+    b.textContent=label;
+    b.addEventListener('click',()=>{ $('#modal').classList.remove('active'); cb&&cb(); });
+    mb.appendChild(b);
+  }
+  $('#modal').classList.add('active');
+}
+
+/* ================= ヘルプ(動き図を自動生成) ================= */
+const AR={ '0,-1':'↑','0,1':'↓','1,0':'→','-1,0':'←','1,-1':'↗','-1,-1':'↖','1,1':'↘','-1,1':'↙' };
+function miniCells(t){ // 5x5の動き図(▲視点)のセルHTML
+  const d=DEF[t], g=new Array(25).fill('');
+  const put=(dx,dy,ch)=>{ const x=2+dx,y=2+dy; if(x>=0&&x<5&&y>=0&&y<5&&!g[y*5+x]) g[y*5+x]=ch; };
+  if(d.steps) for(const v of d.steps) put(v[0],v[1],'●');
+  if(d.jumps) for(const v of d.jumps) put(v[0],v[1],'○');
+  if(d.slides) for(const v of d.slides){
+    if(d.range===2){ put(v[0],v[1],'●'); put(v[0]*2,v[1]*2,'●'); }
+    else{ put(v[0],v[1],AR[v[0]+','+v[1]]); put(v[0]*2,v[1]*2,AR[v[0]+','+v[1]]); }
+  }
+  if(d.area) for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){ if(dx||dy) put(dx,dy,'○'); }
+  return g.map((ch,i)=>i===12?'<div class="ctr">'+d.c[0]+'</div>':'<div>'+ch+'</div>').join('');
+}
+function buildHelp(){
+  const hl=$('#hlist'); hl.innerHTML='';
+  const names=Object.keys(DEF).sort((a,b)=>(DEF[a].rar-DEF[b].rar)||(DEF[a].val-DEF[b].val));
+  for(const t of names){
+    const d=DEF[t];
+    const ent=document.createElement('div'); ent.className='hent';
+    const tag = d.rar>=0? '<span class="htag r'+d.rar+'">'+['N','R','SR','SSR'][d.rar]+'</span>':'';
+    ent.innerHTML='<div class="hname">'+t+tag+'</div><div class="hy">'+d.y+'</div>'+
+      '<div class="mini">'+miniCells(t)+'</div>'+
+      '<div class="hpro">'+(d.pro?'成り → '+d.pro:'成りなし')+'</div>';
+    hl.appendChild(ent);
+  }
+}
+
+/* ================= UIイベント ================= */
+$$('.opt').forEach(b=>b.addEventListener('click',()=>{
+  const k=b.dataset.k;
+  $$('.opt[data-k="'+k+'"]').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  cfg[k] = (k==='mode')? b.dataset.v : +b.dataset.v;
+  $$('.cpuonly').forEach(e=>e.style.display = cfg.mode==='cpu'?'flex':'none');
+}));
+$('#bGacha').addEventListener('click',()=>{ ac(); doGacha(); showScreen('scr-gacha'); });
+$('#bReroll').addEventListener('click',()=>doGacha());
+$('#bStart').addEventListener('click',()=>startGame());
+$('#bTitle1').addEventListener('click',()=>showScreen('scr-title'));
+$('#bTitle2').addEventListener('click',()=>modal('タイトルに戻りますか?<br><span class="sm">対局は破棄されます</span>',[
+  ['戻る',()=>showScreen('scr-title')],['キャンセル',null]]));
+$('#bUndo').addEventListener('click',undo);
+$('#bResign').addEventListener('click',()=>{
+  if(!state||state.over||state.thinking) return;
+  if(cfg.mode==='cpu'&&state.turn!==cfg.pside) return;
+  const loser=state.turn;
+  modal('投了しますか?',[ ['投了する',()=>gameOver(1-loser,'投了')], ['キャンセル',null] ]);
+});
+$('#bMute').addEventListener('click',e=>{ muted=!muted; e.target.textContent=muted?'🔇':'🔊'; });
+$('#bHelp1').addEventListener('click',()=>$('#help').classList.add('active'));
+$('#bHelp2').addEventListener('click',()=>$('#help').classList.add('active'));
+$('#bHelpClose').addEventListener('click',()=>$('#help').classList.remove('active'));
+buildHelp();
+
+/* デバッグ用 */
+window.G={ cfg, DEF, get state(){return state;}, execMove, cpuPick, legalMovesAll, startGame, doGacha,
+           get draws(){return draws;} };
+</script>
+</body>
+</html>

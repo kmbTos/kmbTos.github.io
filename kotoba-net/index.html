@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>ことばの わ 🌈</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#5b4636;
+    --paper:#fff9ec;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ height:100%; margin:0; overflow:hidden; }
+  body{
+    font-family:'M PLUS Rounded 1c','Hiragino Maru Gothic ProN','Yu Gothic UI',sans-serif;
+    font-weight:700;
+    color:var(--ink);
+    background:
+      radial-gradient(circle at 12% 18%, #ffe3ec 0, transparent 28%),
+      radial-gradient(circle at 88% 12%, #e0f4ff 0, transparent 30%),
+      radial-gradient(circle at 80% 85%, #eaffe0 0, transparent 32%),
+      radial-gradient(circle at 15% 88%, #fff3cf 0, transparent 30%),
+      var(--paper);
+    user-select:none; touch-action:manipulation;
+    display:flex; flex-direction:column;
+  }
+
+  /* ---------- header ---------- */
+  header{
+    flex:0 0 auto;
+    display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px;
+    padding:10px 14px;
+    z-index:20;
+  }
+  header h1{
+    margin:0; font-size:24px; font-weight:800; letter-spacing:2px;
+    text-shadow:0 2px 0 #fff; white-space:nowrap;
+  }
+  header .spacer{ flex:1; }
+  .btn{
+    font-family:inherit; font-weight:800; font-size:16px;
+    color:var(--ink);
+    background:#fff; border:3px solid #f2b64e; border-radius:999px;
+    padding:8px 16px; cursor:pointer;
+    box-shadow:0 3px 0 #e8a12f;
+    transition:transform .1s;
+    white-space:nowrap;
+  }
+  .btn:active{ transform:translateY(3px); box-shadow:none; }
+  .btn:disabled{ opacity:.4; cursor:default; box-shadow:0 3px 0 #ccc; border-color:#ccc; }
+
+  /* ---------- stage ---------- */
+  #stage{ position:relative; flex:1 1 auto; overflow:hidden; }
+  #lines{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+  #lines line{
+    stroke:#dba3cc; stroke-width:6; stroke-linecap:round;
+    stroke-dasharray:.1 13;
+    animation:march 1.2s linear infinite;
+  }
+  @keyframes march{ to{ stroke-dashoffset:-13.1; } }
+
+  .node{
+    position:absolute; left:0; top:0;
+    transform:translate(-50%,-50%);
+    cursor:pointer; z-index:5;
+  }
+  .node .card{
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+    background:hsl(var(--h) 85% 92%);
+    border:4px solid hsl(var(--h) 60% 62%);
+    border-radius:26px;
+    padding:8px 20px 10px;
+    box-shadow:0 5px 0 hsl(var(--h) 45% 72%);
+    animation:bob 3s ease-in-out infinite;
+    white-space:nowrap;
+  }
+  .node .emoji{ font-size:32px; line-height:1.1; }
+  .node .word{ font-size:20px; font-weight:800; letter-spacing:1px; }
+  .node.center{ z-index:8; cursor:pointer; }
+  .node.center .card{
+    border-width:5px; border-radius:34px; padding:12px 30px 14px;
+    box-shadow:0 7px 0 hsl(var(--h) 45% 68%), 0 0 0 8px hsl(var(--h) 90% 88% / .6);
+  }
+  .node.center .emoji{ font-size:52px; }
+  .node.center .word{ font-size:30px; }
+  .node.unknown .card{ border-style:dashed; opacity:.85; }
+  .node:not(.center):hover .card{ background:hsl(var(--h) 90% 88%); }
+  @keyframes bob{
+    0%,100%{ transform:translateY(0); }
+    50%{ transform:translateY(-6px); }
+  }
+  .node.wiggle .card{ animation:wiggle .5s ease; }
+  @keyframes wiggle{
+    0%,100%{ transform:rotate(0); }
+    25%{ transform:rotate(-6deg) scale(1.06); }
+    60%{ transform:rotate(5deg) scale(1.06); }
+  }
+
+  /* ---------- speech bubble ---------- */
+  #bubble{
+    position:absolute; left:50%; bottom:14px; transform:translateX(-50%);
+    width:min(680px, calc(100% - 24px));
+    background:#fff; border:4px solid #7fc6e8; border-radius:24px;
+    box-shadow:0 6px 0 #5fb0d8;
+    padding:12px 18px; z-index:15;
+    display:flex; align-items:center; gap:14px;
+  }
+  #bubble::before{
+    content:""; position:absolute; top:-16px; left:50%; margin-left:-12px;
+    border:12px solid transparent; border-bottom-color:#7fc6e8; border-top:0;
+  }
+  #bubble .b-emoji{ font-size:44px; flex:0 0 auto; }
+  #bubble .b-text{ flex:1; min-width:0; }
+  #bubble .b-word{ font-size:22px; font-weight:800; }
+  #bubble .b-desc{ font-size:17px; line-height:1.5; margin-top:2px; }
+  #bubble .b-hint{ font-size:13px; color:#9a8a76; margin-top:4px; }
+  #bubble.pop{ animation:bpop .35s ease; }
+  @keyframes bpop{
+    0%{ transform:translateX(-50%) scale(.85); }
+    60%{ transform:translateX(-50%) scale(1.05); }
+    100%{ transform:translateX(-50%) scale(1); }
+  }
+  .speakBtn{
+    flex:0 0 auto; font-size:24px; width:52px; height:52px;
+    border-radius:50%; border:3px solid #f2b64e; background:#fff7e0;
+    box-shadow:0 3px 0 #e8a12f; cursor:pointer;
+  }
+  .speakBtn:active{ transform:translateY(3px); box-shadow:none; }
+
+  /* ---------- word list drawer ---------- */
+  #drawer{
+    position:absolute; top:0; right:0; bottom:0; width:min(320px, 85%);
+    background:#fffdf5; border-left:4px solid #f2b64e;
+    box-shadow:-6px 0 18px rgba(0,0,0,.12);
+    z-index:30; padding:14px;
+    transform:translateX(105%); transition:transform .25s ease;
+    display:flex; flex-direction:column;
+  }
+  #drawer.open{ transform:translateX(0); }
+  #drawer h2{ margin:4px 4px 10px; font-size:20px; }
+  #drawer .count{ font-size:13px; color:#9a8a76; margin:0 4px 10px; }
+  #wordList{ flex:1; overflow-y:auto; display:flex; flex-wrap:wrap; gap:8px; align-content:flex-start; padding:4px; }
+  #wordList button{
+    font-family:inherit; font-weight:800; font-size:16px; color:var(--ink);
+    background:hsl(var(--h) 85% 92%); border:3px solid hsl(var(--h) 60% 62%);
+    border-radius:999px; padding:6px 14px; cursor:pointer;
+  }
+  #drawerClose{ align-self:flex-end; }
+
+  /* ---------- quest banner ---------- */
+  #quest[hidden], #winOverlay[hidden]{ display:none; }
+  #quest{
+    position:absolute; top:10px; left:50%; transform:translateX(-50%);
+    display:flex; align-items:center; gap:10px;
+    background:#fff; border:4px solid #f08cae; border-radius:20px;
+    box-shadow:0 5px 0 #e06a92;
+    padding:8px 14px; z-index:18;
+    max-width:calc(100% - 20px);
+  }
+  #quest .q-flag{ font-size:30px; }
+  #quest .q-goal{ font-size:18px; font-weight:800; white-space:nowrap; }
+  #quest .q-goal b{ color:#e05080; }
+  #quest .q-steps{ font-size:13px; color:#9a8a76; }
+  .btn.small{ font-size:13px; padding:5px 10px; }
+
+  /* ---------- win overlay ---------- */
+  #winOverlay{
+    position:fixed; inset:0; z-index:100;
+    background:rgba(255,250,235,.75);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .win-card{
+    background:#fff; border:5px solid #f2b64e; border-radius:30px;
+    box-shadow:0 8px 0 #e8a12f;
+    padding:26px 40px; text-align:center;
+    animation:bpop2 .45s ease;
+  }
+  @keyframes bpop2{
+    0%{ transform:scale(.6); opacity:0; }
+    60%{ transform:scale(1.08); }
+    100%{ transform:scale(1); opacity:1; }
+  }
+  .win-title{ font-size:34px; font-weight:800; }
+  .win-word{ font-size:28px; font-weight:800; margin:10px 0 4px; color:#e05080; }
+  .win-info{ font-size:17px; margin-bottom:16px; line-height:1.6; }
+  .win-btns{ display:flex; gap:12px; justify-content:center; }
+  .confetti{
+    position:fixed; top:-40px; z-index:99; font-size:26px; pointer-events:none;
+    animation:fall linear forwards;
+  }
+  @keyframes fall{
+    to{ transform:translateY(110vh) rotate(720deg); }
+  }
+
+  /* ---------- tap particles ---------- */
+  .spark{
+    position:absolute; z-index:50; pointer-events:none; font-size:20px;
+    left:0; top:0;
+    animation:fly .7s ease-out forwards;
+  }
+  @keyframes fly{
+    0%{ transform:translate(-50%,-50%) scale(.6); opacity:1; }
+    100%{ transform:translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.3); opacity:0; }
+  }
+
+  @media (max-width:600px){
+    header h1{ font-size:19px; letter-spacing:1px; }
+    .btn{ font-size:14px; padding:7px 12px; }
+    .node .emoji{ font-size:26px; }
+    .node .word{ font-size:17px; }
+    .node.center .emoji{ font-size:42px; }
+    .node.center .word{ font-size:24px; }
+    #bubble .b-desc{ font-size:15px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🌈 ことばの わ ⭐</h1>
+  <div class="spacer"></div>
+  <button class="btn" id="btnBack">← もどる</button>
+  <button class="btn" id="btnQuest">🚩 たんけん!</button>
+  <button class="btn" id="btnRandom">🎲 どれかな?</button>
+  <button class="btn" id="btnList">📖 ぜんぶ みる</button>
+  <button class="btn" id="btnSound" title="おとの おん/おふ">🔊</button>
+</header>
+
+<main id="stage">
+  <svg id="lines"></svg>
+  <div id="quest" hidden>
+    <span class="q-flag">🚩</span>
+    <div class="q-text">
+      <div class="q-goal">めざせ! <b id="qGoal"></b></div>
+      <div class="q-steps" id="qSteps"></div>
+    </div>
+    <button class="btn small" id="btnHint">💡 ヒント</button>
+    <button class="btn small" id="btnGiveup">やめる</button>
+  </div>
+</main>
+
+<div id="winOverlay" hidden>
+  <div class="win-card">
+    <div class="win-title">🎉 ゴール! 🎉</div>
+    <div class="win-word" id="winWord"></div>
+    <div class="win-info" id="winInfo"></div>
+    <div class="win-btns">
+      <button class="btn" id="btnAgain">🚩 もういちど</button>
+      <button class="btn" id="btnFinish">おしまい</button>
+    </div>
+  </div>
+</div>
+
+<div id="bubble">
+  <span class="b-emoji" id="bEmoji">🐶</span>
+  <div class="b-text">
+    <div class="b-word" id="bWord"></div>
+    <div class="b-desc" id="bDesc"></div>
+    <div class="b-hint" id="bHint">まわりの ことばを おしてみてね!</div>
+  </div>
+  <button class="speakBtn" id="btnSpeak" title="よみあげ">🔊</button>
+</div>
+
+<div id="drawer">
+  <button class="btn" id="drawerClose">とじる ✕</button>
+  <h2>📖 ことばの ほん</h2>
+  <p class="count" id="wordCount"></p>
+  <div id="wordList"></div>
+</div>
+
+<script>
+/* =====================================================================
+   ことばデータ (WORDS)
+   ---------------------------------------------------------------------
+   ★ 単語を追加するモデルへ ★
+   このオブジェクトにエントリを足すだけでページに反映されます。
+
+   "ことば": {                       // キー: ひらがな表記(小1向け)
+     emoji: "🐶",                    // 絵文字1つ(その語のイメージ)
+     desc: "わんわん なく どうぶつ。", // ひらがなのみ・分かち書き・1〜2文の短い説明
+     related: ["ねこ", "さんぽ"]     // 関連語 2〜5個
+   },
+
+   ルール:
+   - desc は小学1年生が読めるよう「ひらがな + 分かち書き」で書く
+   - related には WORDS にまだ無い語を書いてもよい
+     (自動で「❓ じゅんびちゅう」ノードとして表示される)
+   - 逆方向のリンクは自動計算されるので related は片方向で十分
+   - キーの重複禁止。既存の語の related に新語を足してつなげるとよい
+   ===================================================================== */
+const WORDS = {
+  "いぬ":     { emoji:"🐶", desc:"「わんわん」と なく どうぶつ。にんげんと とても なかよし。", related:["ねこ","さんぽ","おうち","しっぽ"] },
+  "ねこ":     { emoji:"🐱", desc:"「にゃーにゃー」と なく どうぶつ。ひなたぼっこが だいすき。", related:["いぬ","さかな","しっぽ","ひるね"] },
+  "さんぽ":   { emoji:"🚶", desc:"そとを ぶらぶら あるく こと。きもちが いいよ。", related:["いぬ","こうえん","みち"] },
+  "しっぽ":   { emoji:"🦊", desc:"どうぶつの おしりに ある ながい もの。ふりふり うごくよ。", related:["いぬ","ねこ","さる"] },
+  "さる":     { emoji:"🐵", desc:"きのぼりが じょうずな どうぶつ。ばななが だいすき。", related:["ばなな","き","しっぽ"] },
+  "ばなな":   { emoji:"🍌", desc:"きいろくて あまい くだもの。かわを むいて たべるよ。", related:["さる","りんご","くだもの"] },
+  "りんご":   { emoji:"🍎", desc:"あかくて まるい くだもの。しゃきしゃき して おいしい。", related:["ばなな","くだもの"] },
+  "くだもの": { emoji:"🍇", desc:"きから とれる あまい たべもの。りんごや ばななの なかま。", related:["りんご","ばなな","たべもの"] },
+  "たべもの": { emoji:"🍙", desc:"たべる もの ぜんぶの こと。げんきの もと に なるよ。", related:["くだもの","ごはん","ぱん"] },
+  "ごはん":   { emoji:"🍚", desc:"おこめを たいた たべもの。まいにち たべるよ。", related:["たべもの","ぱん","たまご"] },
+  "ぱん":     { emoji:"🍞", desc:"こむぎこから つくる たべもの。ふわふわ して おいしい。", related:["ごはん","たべもの"] },
+  "たまご":   { emoji:"🥚", desc:"とりが うむ まるい もの。ひよこが うまれる ことも あるよ。", related:["とり","ひよこ","ごはん"] },
+  "ひよこ":   { emoji:"🐤", desc:"にわとりの あかちゃん。きいろくて ふわふわ だよ。", related:["たまご","とり"] },
+  "とり":     { emoji:"🐦", desc:"はねが あって そらを とぶ いきもの。", related:["そら","たまご","ひよこ"] },
+  "そら":     { emoji:"🌤️", desc:"うえを みると ひろがる ばしょ。くもや たいようが あるよ。", related:["とり","くも","たいよう","つき","ほし"] },
+  "くも":     { emoji:"☁️", desc:"そらに うかぶ しろい もの。あめを ふらせる ことも あるよ。", related:["そら","あめ"] },
+  "あめ":     { emoji:"☔", desc:"そらから みずが ふって くる こと。かさを さすよ。", related:["くも","みず","にじ"] },
+  "にじ":     { emoji:"🌈", desc:"あめの あとに そらに かかる なないろの はし。", related:["あめ","たいよう"] },
+  "たいよう": { emoji:"☀️", desc:"ひるまに そらで ぴかぴか ひかる おおきな ほし。", related:["そら","つき","ほし"] },
+  "つき":     { emoji:"🌙", desc:"よるに そらで ひかる まるい もの。かたちが かわるよ。", related:["たいよう","ほし","よる"] },
+  "ほし":     { emoji:"⭐", desc:"よるの そらで きらきら ひかる ちいさな ひかり。", related:["つき","そら","よる"] },
+  "よる":     { emoji:"🌃", desc:"たいようが しずんで くらく なる じかん。", related:["つき","ほし","ねる"] },
+  "ねる":     { emoji:"😴", desc:"めを つむって やすむ こと。よるは ぐっすり ねよう。", related:["よる","ひるね","ゆめ"] },
+  "ひるね":   { emoji:"💤", desc:"ひるまに すこしだけ ねる こと。すっきり するよ。", related:["ねる","ねこ"] },
+  "ゆめ":     { emoji:"💭", desc:"ねている ときに みる ふしぎな おはなし。", related:["ねる","よる"] },
+  "みず":     { emoji:"💧", desc:"のんだり あらったり する とうめいな もの。", related:["あめ","うみ","かわ","さかな"] },
+  "うみ":     { emoji:"🌊", desc:"しおからい みずが いっぱいの ひろい ばしょ。", related:["みず","さかな","かわ","ふね"] },
+  "かわ":     { emoji:"🏞️", desc:"やまから うみへ ながれる みずの みち。", related:["みず","うみ","やま","さかな"] },
+  "やま":     { emoji:"⛰️", desc:"たかく もりあがった じめん。きが たくさん はえて いるよ。", related:["かわ","き"] },
+  "き":       { emoji:"🌳", desc:"みどりの はっぱが ある おおきな しょくぶつ。", related:["やま","はな","さる"] },
+  "はな":     { emoji:"🌸", desc:"きれいな いろで さく しょくぶつ。いい におい が するよ。", related:["き","はる"] },
+  "はる":     { emoji:"🌷", desc:"さむい ふゆの つぎに くる あたたかい きせつ。", related:["はな","たいよう"] },
+  "さかな":   { emoji:"🐟", desc:"みずの なかで すいすい およぐ いきもの。", related:["うみ","かわ","みず","ねこ"] },
+  "ふね":     { emoji:"⛵", desc:"みずの うえを すすむ のりもの。", related:["うみ","のりもの"] },
+  "のりもの": { emoji:"🚗", desc:"ひとを のせて はこぶ もの。くるまや でんしゃの なかま。", related:["ふね","くるま","でんしゃ"] },
+  "くるま":   { emoji:"🚙", desc:"たいやで みちを はしる のりもの。", related:["のりもの","みち","でんしゃ"] },
+  "でんしゃ": { emoji:"🚃", desc:"せんろの うえを はしる ながい のりもの。", related:["のりもの","くるま"] },
+  "みち":     { emoji:"🛣️", desc:"ひとや くるまが とおる ところ。", related:["さんぽ","くるま","こうえん"] },
+  "こうえん": { emoji:"⛲", desc:"すべりだいや ぶらんこが ある あそぶ ばしょ。", related:["さんぽ","みち","ともだち","あそぶ"] },
+  "あそぶ":   { emoji:"🎈", desc:"たのしい ことを して すごす こと。", related:["こうえん","ともだち","おもちゃ"] },
+  "おもちゃ": { emoji:"🧸", desc:"あそぶ ための どうぐ。たいせつに つかおう。", related:["あそぶ"] },
+  "ともだち": { emoji:"🤝", desc:"いっしょに あそんだり はなしたり する なかよしの ひと。", related:["あそぶ","こうえん","がっこう"] },
+  "がっこう": { emoji:"🏫", desc:"べんきょうしたり ともだちと あそんだり する ばしょ。", related:["ともだち","べんきょう","ほん"] },
+  "べんきょう":{ emoji:"✏️", desc:"あたらしい ことを ならう こと。", related:["がっこう","ほん"] },
+  "ほん":     { emoji:"📖", desc:"もじや えが かいて ある よむ もの。", related:["べんきょう","がっこう"] },
+  "おうち":   { emoji:"🏠", desc:"かぞくと いっしょに すむ ばしょ。", related:["いぬ","ねる","かぞく"] },
+  "かぞく":   { emoji:"👨‍👩‍👧‍👦", desc:"おとうさん おかあさん きょうだいなど いっしょに くらす ひとたち。", related:["おうち","ともだち"] },
+};
+
+const START_WORD = "いぬ";   // さいしょに まんなかに でる ことば
+const MAX_SATELLITES = 8;    // まわりに ならべる かんれんごの さいだい数
+
+/* =====================================================================
+   以下エンジン部。単語追加だけなら触る必要なし。
+   ===================================================================== */
+(function(){
+  const stage   = document.getElementById('stage');
+  const svg     = document.getElementById('lines');
+  const bubble  = document.getElementById('bubble');
+  const bEmoji  = document.getElementById('bEmoji');
+  const bWord   = document.getElementById('bWord');
+  const bDesc   = document.getElementById('bDesc');
+  const bHint   = document.getElementById('bHint');
+  const btnBack = document.getElementById('btnBack');
+
+  const PLACEHOLDER_DESC = "この ことばの おはなしは まだ じゅんびちゅう だよ。";
+  let current = null;
+  let history = [];
+  let nodes = new Map();     // word -> {el, x, y, s}
+  let soundOn = true;
+  let tween = null;          // {t0, dur, items:[{node,fx,fy,fs,tx,ty,ts,dying}]}
+  let quest = null;          // {goal, steps, min} たんけんゲーム中のみ
+
+  /* ---------- helpers ---------- */
+  const hue = w => { let h = 7; for (const c of w) h = (h * 31 + c.codePointAt(0)) % 360; return h; };
+  const entryOf = w => WORDS[w] || { emoji:"❓", desc:PLACEHOLDER_DESC, related:[] };
+  const isKnown = w => Object.prototype.hasOwnProperty.call(WORDS, w);
+
+  // related = 明示リンク + 逆リンク(自動)。prev を優先的に残す
+  function relatedOf(word, prev){
+    const out = [];
+    const push = w => { if (w !== word && !out.includes(w)) out.push(w); };
+    (entryOf(word).related || []).forEach(push);
+    for (const [w, e] of Object.entries(WORDS))
+      if ((e.related || []).includes(word)) push(w);
+    if (prev && out.includes(prev)) {
+      const i = out.indexOf(prev);
+      if (i >= MAX_SATELLITES) { out.splice(i, 1); out.unshift(prev); }
+    }
+    return out.slice(0, MAX_SATELLITES);
+  }
+
+  function layout(n){
+    const w = stage.clientWidth, h = stage.clientHeight;
+    const cx = w / 2;
+    // 縦方向: ヘッダー下〜バブル上の空きに衛星ノードが収まるように計算
+    const topPad = 65, bubbleTop = h - 155, satHalf = 58;
+    const span = Math.max(220, bubbleTop - topPad);
+    const cy = topPad + span / 2;
+    const rx = Math.max(130, Math.min(w * 0.5 - 105, 430));
+    const ry = Math.max(105, span / 2 - satHalf);
+    // 衛星が偶数個のときは角度をずらし、中心カードと重なる真上/真下を避ける
+    const start = -Math.PI / 2 + (n > 1 && n % 2 === 0 ? Math.PI / n : 0);
+    const pts = [];
+    for (let i = 0; i < n; i++){
+      const a = start + i * 2 * Math.PI / n;
+      pts.push({ x: cx + rx * Math.cos(a), y: cy + ry * Math.sin(a) });
+    }
+    return { cx, cy, pts };
+  }
+
+  /* ---------- audio ---------- */
+  let actx = null;
+  function pop(){
+    if (!soundOn) return;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.frequency.setValueAtTime(660, actx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(220, actx.currentTime + .09);
+      g.gain.setValueAtTime(.12, actx.currentTime);
+      g.gain.exponentialRampToValueAtTime(.001, actx.currentTime + .1);
+      o.connect(g); g.connect(actx.destination);
+      o.start(); o.stop(actx.currentTime + .11);
+    } catch (e) {}
+  }
+  function speak(text){
+    if (!soundOn || !('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ja-JP'; u.rate = .85;
+    speechSynthesis.speak(u);
+  }
+
+  /* ---------- sparkles ---------- */
+  function sparkle(x, y){
+    const chars = ["✨","⭐","💫","🌟"];
+    for (let i = 0; i < 6; i++){
+      const s = document.createElement('span');
+      s.className = 'spark';
+      s.textContent = chars[i % chars.length];
+      const a = Math.random() * 2 * Math.PI, d = 40 + Math.random() * 50;
+      s.style.setProperty('--dx', Math.cos(a) * d + 'px');
+      s.style.setProperty('--dy', Math.sin(a) * d + 'px');
+      s.style.left = x + 'px'; s.style.top = y + 'px';
+      stage.appendChild(s);
+      setTimeout(() => s.remove(), 750);
+    }
+  }
+
+  /* ---------- nodes ---------- */
+  function makeNode(word, x, y, s){
+    const e = entryOf(word);
+    const el = document.createElement('div');
+    el.className = 'node' + (isKnown(word) ? '' : ' unknown');
+    el.style.setProperty('--h', hue(word));
+    el.innerHTML = `<div class="card"><span class="emoji"></span><span class="word"></span></div>`;
+    el.querySelector('.emoji').textContent = e.emoji;
+    el.querySelector('.word').textContent  = word;
+    el.addEventListener('pointerdown', ev => {
+      ev.preventDefault();
+      const n = nodes.get(word);
+      if (n) sparkle(n.x, n.y - 20);
+      if (word === current){
+        el.classList.remove('wiggle'); void el.offsetWidth; el.classList.add('wiggle');
+        pop(); speak(word + "。" + entryOf(word).desc);
+      } else {
+        pop(); go(word);
+      }
+    });
+    stage.appendChild(el);
+    const node = { el, word, x, y, s };
+    place(node);
+    return node;
+  }
+  function place(n){
+    n.el.style.left = n.x + 'px';
+    n.el.style.top  = n.y + 'px';
+    n.el.style.transform = `translate(-50%,-50%) scale(${n.s})`;
+  }
+
+  /* ---------- lines ---------- */
+  function rebuildLines(sats){
+    svg.innerHTML = '';
+    return sats.map(word => {
+      const l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l.dataset.word = word;
+      svg.appendChild(l);
+      return l;
+    });
+  }
+  function updateLines(){
+    const c = nodes.get(current);
+    if (!c) return;
+    for (const l of svg.children){
+      const n = nodes.get(l.dataset.word);
+      if (!n) continue;
+      l.setAttribute('x1', c.x); l.setAttribute('y1', c.y);
+      l.setAttribute('x2', n.x); l.setAttribute('y2', n.y);
+      l.setAttribute('opacity', Math.min(c.s, n.s));
+    }
+  }
+
+  /* ---------- animation ---------- */
+  const ease = t => 1 - Math.pow(1 - t, 3);
+  function startTween(items, dur){
+    if (tween) finishTween();  // 前のアニメは目標値へスナップ
+    tween = { t0: performance.now(), dur, items };
+    requestAnimationFrame(tick);
+  }
+  function finishTween(){
+    if (!tween) return;
+    for (const it of tween.items){
+      it.node.x = it.tx; it.node.y = it.ty; it.node.s = it.ts;
+      place(it.node);
+      if (it.dying){ it.node.el.remove(); nodes.delete(it.node.word); }
+    }
+    tween = null;
+    updateLines();
+  }
+  function tick(now){
+    if (!tween) return;
+    const t = Math.min(1, (now - tween.t0) / tween.dur), k = ease(t);
+    for (const it of tween.items){
+      it.node.x = it.fx + (it.tx - it.fx) * k;
+      it.node.y = it.fy + (it.ty - it.fy) * k;
+      it.node.s = it.fs + (it.ts - it.fs) * k;
+      place(it.node);
+    }
+    updateLines();
+    if (t >= 1) finishTween();
+    else requestAnimationFrame(tick);
+  }
+
+  /* ---------- bubble ---------- */
+  function showBubble(word, firstTime){
+    const e = entryOf(word);
+    bEmoji.textContent = e.emoji;
+    bWord.textContent  = word;
+    bDesc.textContent  = e.desc;
+    bHint.style.display = firstTime ? '' : 'none';
+    bubble.classList.remove('pop'); void bubble.offsetWidth; bubble.classList.add('pop');
+  }
+
+  /* ---------- main transition ---------- */
+  function go(word, pushHistory = true, countStep = true){
+    if (word === current) return;
+    const prev = current;
+    if (pushHistory && prev) history.push(prev);
+    current = word;
+
+    const sats = relatedOf(word, prev);
+    const { cx, cy, pts } = layout(sats.length);
+    const keep = new Set([word, ...sats]);
+    const items = [];
+
+    // 消えるノード
+    for (const [w, n] of nodes)
+      if (!keep.has(w))
+        items.push({ node:n, fx:n.x, fy:n.y, fs:n.s, tx:cx, ty:cy, ts:0, dying:true });
+
+    // 中心ノード
+    let c = nodes.get(word);
+    if (!c){ c = makeNode(word, cx, cy, 0); nodes.set(word, c); }
+    c.el.classList.add('center');
+    items.push({ node:c, fx:c.x, fy:c.y, fs:c.s, tx:cx, ty:cy, ts:1 });
+
+    // 衛星ノード
+    sats.forEach((w, i) => {
+      let n = nodes.get(w);
+      if (!n){ n = makeNode(w, cx, cy, 0); nodes.set(w, n); }
+      n.el.classList.remove('center');
+      items.push({ node:n, fx:n.x, fy:n.y, fs:n.s, tx:pts[i].x, ty:pts[i].y, ts:1 });
+    });
+
+    rebuildLines(sats);
+    startTween(items, 620);
+    showBubble(word, !prev);
+    speak(word);
+    btnBack.disabled = history.length === 0;
+
+    if (quest){
+      if (countStep) quest.steps++;
+      updateQuestUI();
+      if (word === quest.goal) setTimeout(win, 750);
+    }
+  }
+
+  /* ---------- たんけんゲーム (目標のことばに たどりつく) ---------- */
+  const questEl = document.getElementById('quest');
+  const overlay = document.getElementById('winOverlay');
+
+  // relatedOf と同じ(=画面に出る)つながりで幅優先探索
+  function bfs(from){
+    const dist = { [from]: 0 }, q = [from];
+    while (q.length){
+      const w = q.shift();
+      for (const n of relatedOf(w))
+        if (!(n in dist)){ dist[n] = dist[w] + 1; q.push(n); }
+    }
+    return dist;
+  }
+
+  function startQuest(){
+    const keys = Object.keys(WORDS);
+    let start, goal, dist;
+    for (let tryN = 0; tryN < 30; tryN++){
+      start = keys[Math.floor(Math.random() * keys.length)];
+      dist = bfs(start);
+      const far = keys.filter(w => dist[w] >= 3 && dist[w] <= 5);
+      if (far.length){ goal = far[Math.floor(Math.random() * far.length)]; break; }
+    }
+    if (!goal){ // 語彙が少なくても動くフォールバック
+      goal = keys.filter(w => w !== start)[0];
+      dist = bfs(start);
+    }
+    quest = { goal, steps: 0, min: dist[goal] };
+    history = [];
+    document.getElementById('qGoal').textContent = entryOf(goal).emoji + ' ' + goal;
+    questEl.hidden = false;
+    overlay.hidden = true;
+    go(start, false, false);
+    updateQuestUI();
+    speak("「" + goal + "」を さがしてみよう!");
+  }
+  function updateQuestUI(){
+    document.getElementById('qSteps').textContent = `あるいた かず: ${quest.steps}`;
+  }
+  function endQuest(){
+    quest = null;
+    questEl.hidden = true;
+    overlay.hidden = true;
+  }
+
+  function confetti(){
+    const chars = ["🎉","⭐","🌸","✨","🎈","💛"];
+    for (let i = 0; i < 40; i++){
+      const s = document.createElement('span');
+      s.className = 'confetti';
+      s.textContent = chars[i % chars.length];
+      s.style.left = Math.random() * 100 + 'vw';
+      s.style.animationDuration = (1.6 + Math.random() * 1.8) + 's';
+      s.style.animationDelay = Math.random() * .8 + 's';
+      document.body.appendChild(s);
+      setTimeout(() => s.remove(), 4500);
+    }
+  }
+  function win(){
+    if (!quest) return;
+    const q = quest;
+    document.getElementById('winWord').textContent = entryOf(q.goal).emoji + ' ' + q.goal;
+    document.getElementById('winInfo').innerHTML =
+      `${q.steps}かいで つけたよ!<br>` +
+      (q.steps <= q.min ? "すごい! いちばん みじかい みちだったよ! 🏆"
+                        : `いちばん みじかい みちは ${q.min}かい だよ。`);
+    overlay.hidden = false;
+    confetti();
+    speak("ゴール! やったね!");
+  }
+
+  document.getElementById('btnQuest').addEventListener('click', () => { pop(); startQuest(); });
+  document.getElementById('btnGiveup').addEventListener('click', () => { pop(); endQuest(); });
+  document.getElementById('btnAgain').addEventListener('click', () => { pop(); startQuest(); });
+  document.getElementById('btnFinish').addEventListener('click', () => { pop(); endQuest(); });
+  document.getElementById('btnHint').addEventListener('click', () => {
+    if (!quest) return;
+    const dg = bfs(quest.goal);
+    let best = null, bestD = Infinity;
+    for (const l of svg.children){
+      const w = l.dataset.word;
+      if (w in dg && dg[w] < bestD){ bestD = dg[w]; best = w; }
+    }
+    if (!best) return;
+    const n = nodes.get(best);
+    if (n){
+      n.el.classList.remove('wiggle'); void n.el.offsetWidth; n.el.classList.add('wiggle');
+      sparkle(n.x, n.y - 20);
+      pop();
+    }
+  });
+
+  /* ---------- header buttons ---------- */
+  btnBack.addEventListener('click', () => {
+    if (!history.length) return;
+    pop(); go(history.pop(), false);
+    btnBack.disabled = history.length === 0;
+  });
+  document.getElementById('btnRandom').addEventListener('click', () => {
+    const keys = Object.keys(WORDS).filter(w => w !== current);
+    pop(); go(keys[Math.floor(Math.random() * keys.length)]);
+  });
+  document.getElementById('btnSound').addEventListener('click', function(){
+    soundOn = !soundOn;
+    this.textContent = soundOn ? '🔊' : '🔇';
+    if (!soundOn && 'speechSynthesis' in window) speechSynthesis.cancel();
+  });
+  document.getElementById('btnSpeak').addEventListener('click', () => {
+    if (!current) return;
+    pop(); speak(current + "。" + entryOf(current).desc);
+  });
+
+  /* ---------- drawer ---------- */
+  const drawer = document.getElementById('drawer');
+  document.getElementById('btnList').addEventListener('click', () => {
+    buildList(); drawer.classList.add('open');
+  });
+  document.getElementById('drawerClose').addEventListener('click', () => drawer.classList.remove('open'));
+  function buildList(){
+    const list = document.getElementById('wordList');
+    list.innerHTML = '';
+    const keys = Object.keys(WORDS).sort((a, b) => a.localeCompare(b, 'ja'));
+    document.getElementById('wordCount').textContent = `いま ${keys.length}この ことばが あるよ`;
+    for (const w of keys){
+      const b = document.createElement('button');
+      b.style.setProperty('--h', hue(w));
+      b.textContent = entryOf(w).emoji + ' ' + w;
+      b.addEventListener('click', () => { drawer.classList.remove('open'); pop(); go(w); });
+      list.appendChild(b);
+    }
+  }
+
+  /* ---------- resize ---------- */
+  window.addEventListener('resize', () => {
+    if (!current) return;
+    const sats = [...svg.children].map(l => l.dataset.word);
+    const { cx, cy, pts } = layout(sats.length);
+    const c = nodes.get(current);
+    if (c){ c.x = cx; c.y = cy; place(c); }
+    sats.forEach((w, i) => {
+      const n = nodes.get(w);
+      if (n){ n.x = pts[i].x; n.y = pts[i].y; place(n); }
+    });
+    updateLines();
+  });
+
+  /* ---------- debug ---------- */
+  window.G = {
+    WORDS, go,
+    get current(){ return current; },
+    get history(){ return [...history]; },
+    relatedOf,
+  };
+
+  go(START_WORD, false);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,2565 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ゴールデンレコード ― 星へのラブレター</title>
+<meta name="description" content="ボイジャー探査機のゴールデンレコードを解読するWeb謎解き。">
+<style>
+:root{
+  --bg:#070a10; --bg2:#0d1219; --panel:#121821; --panel2:#171f2a;
+  --line:#2a3646; --line2:#3d4c60;
+  --gold:#e3c168; --gold2:#f5e4ac; --gold-dim:#8d7639;
+  --ink:#d7e0ea; --ink-dim:#8b98a8;
+  --cyan:#6fd6e0; --green:#8fe0a0; --red:#e08b7a;
+  --shadow:0 8px 30px rgba(0,0,0,.55);
+  --mono:ui-monospace,"SFMono-Regular",Consolas,"Courier New",monospace;
+  --sans:"Hiragino Kaku Gothic ProN","Yu Gothic",YuGothic,Meiryo,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--sans);
+  font-size:15px; line-height:1.7; overflow-x:hidden;
+  -webkit-text-size-adjust:100%;
+}
+#stars{position:fixed;inset:0;z-index:0;pointer-events:none}
+#app{position:relative;z-index:1;min-height:100%;display:flex;flex-direction:column}
+
+/* ---------- header ---------- */
+header{
+  display:flex;align-items:center;gap:12px;padding:8px 14px;
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(18,24,33,.96),rgba(7,10,16,.86));
+  backdrop-filter:blur(6px); position:sticky;top:0;z-index:40;
+}
+header h1{
+  font-size:15px;margin:0;letter-spacing:.14em;color:var(--gold2);font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+header h1 small{display:block;font-size:10px;letter-spacing:.3em;color:var(--gold-dim);font-weight:400}
+.spacer{flex:1}
+.hbtn{
+  background:var(--panel2);border:1px solid var(--line2);color:var(--ink);
+  border-radius:6px;padding:6px 11px;font-size:12px;cursor:pointer;font-family:inherit;
+  white-space:nowrap;
+}
+.hbtn:hover{border-color:var(--gold-dim);color:var(--gold2)}
+#progress{font-family:var(--mono);font-size:11px;color:var(--ink-dim);white-space:nowrap}
+#progress b{color:var(--gold)}
+
+/* ---------- layout ---------- */
+#main{flex:1;display:grid;grid-template-columns:210px minmax(0,1fr) 250px;gap:12px;padding:12px;align-items:start}
+@media(max-width:1000px){
+  #main{grid-template-columns:1fr;gap:10px;padding:10px}
+  .col-center{order:1} .col-right{order:2} .col-left{order:3}
+}
+@media(max-width:560px){
+  header{gap:7px;padding:7px 9px}
+  header h1{font-size:13px;letter-spacing:.06em}
+  header h1 small{display:none}
+  #progress{font-size:10px}
+  .hbtn{padding:5px 8px;font-size:11px}
+}
+.col{display:flex;flex-direction:column;gap:10px}
+.card{
+  background:linear-gradient(180deg,var(--panel),var(--panel2));
+  border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);
+}
+.card>h2{
+  margin:0;padding:8px 12px;font-size:11.5px;letter-spacing:.18em;color:var(--gold-dim);
+  border-bottom:1px solid var(--line);font-weight:600;
+}
+.card>.body{padding:10px 12px}
+
+/* ---------- shelf / device buttons ---------- */
+.thing{
+  display:flex;align-items:center;gap:9px;width:100%;text-align:left;
+  background:transparent;border:1px solid transparent;border-radius:8px;
+  padding:7px 8px;color:var(--ink);font-family:inherit;font-size:13px;cursor:pointer;
+  transition:background .15s,border-color .15s;
+}
+.thing:hover{background:rgba(227,193,104,.07);border-color:var(--gold-dim)}
+.thing[disabled]{opacity:.34;cursor:not-allowed}
+.thing .ic{width:26px;height:26px;flex:none;display:grid;place-items:center}
+.thing .tx{flex:1;min-width:0}
+.thing .tx b{display:block;font-weight:600;font-size:13px;line-height:1.35}
+.thing .tx i{display:block;font-style:normal;font-size:10.5px;color:var(--ink-dim);line-height:1.35}
+.thing.new::after{content:"NEW";font-size:9px;color:#0a0d12;background:var(--gold);border-radius:3px;padding:1px 4px;letter-spacing:.06em}
+
+/* ---------- disc stage ---------- */
+#stage{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 6px 14px}
+#discWrap{position:relative;width:min(76vw,520px);aspect-ratio:1;perspective:1200px}
+#disc{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .85s cubic-bezier(.5,.05,.3,1)}
+#disc.flipped{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;border-radius:50%}
+.face.back{transform:rotateY(180deg)}
+.face svg{width:100%;height:100%;display:block;border-radius:50%}
+.hot{cursor:pointer;fill:transparent;stroke:transparent;stroke-width:2;transition:fill .18s,stroke .18s}
+.hot:hover{fill:rgba(227,193,104,.13);stroke:rgba(227,193,104,.85)}
+.hot.seen:hover{stroke:rgba(143,224,160,.8)}
+.hotr{cursor:pointer;fill:none;stroke:transparent;transition:stroke .18s}
+.hotr:hover{stroke:rgba(227,193,104,.16)}
+#disc.showhot .hot{stroke:rgba(52,34,4,.72);stroke-width:3;stroke-dasharray:8 6}
+#disc.showhot .hotr{stroke:rgba(52,34,4,.13)}
+#disc.showhot .hot.seen{stroke:rgba(24,92,44,.6);stroke-dasharray:3 7}
+#discCtl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center}
+.pill{
+  background:var(--panel2);border:1px solid var(--line2);color:var(--ink-dim);
+  border-radius:999px;padding:5px 13px;font-size:12px;cursor:pointer;font-family:inherit;
+}
+.pill.on{color:#0a0d12;background:var(--gold);border-color:var(--gold);font-weight:600}
+#caption{font-size:12px;color:var(--ink-dim);text-align:center;min-height:1.7em;max-width:520px}
+
+/* ---------- notebook ---------- */
+#tabs{display:flex;border-bottom:1px solid var(--line)}
+#tabs button{
+  flex:1;background:transparent;border:0;border-bottom:2px solid transparent;
+  color:var(--ink-dim);font-family:inherit;font-size:12px;padding:8px 2px;cursor:pointer;
+}
+#tabs button.on{color:var(--gold2);border-bottom-color:var(--gold)}
+.tabpane{display:none;padding:8px 10px;max-height:46vh;overflow:auto}
+.tabpane.on{display:block}
+@media(max-width:1000px){.tabpane{max-height:none}}
+.note{
+  border-left:2px solid var(--gold-dim);background:rgba(255,255,255,.025);
+  padding:6px 9px;margin:0 0 7px;border-radius:0 6px 6px 0;font-size:12.5px;
+}
+.note b{color:var(--gold2);display:block;font-size:11.5px;letter-spacing:.05em}
+.note .v{font-family:var(--mono);color:var(--cyan);word-break:break-all}
+.quest{border:1px solid var(--line);border-radius:8px;padding:8px 9px;margin:0 0 8px;background:rgba(0,0,0,.2)}
+.quest .q{font-size:12.5px;margin-bottom:6px}
+.quest.done{border-color:rgba(143,224,160,.45);background:rgba(143,224,160,.06)}
+.quest.done .q::before{content:"✓ ";color:var(--green)}
+.ansrow{display:flex;gap:5px}
+.ansrow input{
+  flex:1;min-width:0;background:#0a0e14;border:1px solid var(--line2);border-radius:6px;
+  color:var(--ink);padding:6px 8px;font-family:inherit;font-size:13px;
+}
+.ansrow input:focus{outline:none;border-color:var(--gold)}
+.ansrow button{
+  background:var(--gold-dim);border:0;border-radius:6px;color:#0a0d12;font-weight:700;
+  padding:0 11px;cursor:pointer;font-family:inherit;font-size:12px;
+}
+.ansrow button:hover{background:var(--gold)}
+.hintbox{font-size:12px;color:var(--ink-dim);margin-top:6px}
+.hintbox button{background:none;border:1px dashed var(--line2);color:var(--ink-dim);
+  border-radius:5px;font-size:11px;padding:2px 7px;cursor:pointer;font-family:inherit;margin-right:4px}
+.hintbox button:hover{color:var(--gold2);border-color:var(--gold-dim)}
+.hinttext{border-left:2px solid var(--line2);padding-left:8px;margin-top:5px;font-size:12px;color:var(--ink)}
+
+/* ---------- modal ---------- */
+#veil{
+  position:fixed;inset:0;background:rgba(3,5,9,.82);z-index:100;display:none;
+  align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(3px);
+}
+#veil.on{display:flex}
+#modal{
+  background:linear-gradient(180deg,#141b25,#0f151d);border:1px solid var(--line2);
+  border-radius:12px;box-shadow:0 20px 70px rgba(0,0,0,.7);
+  width:min(760px,100%);max-height:92vh;overflow:auto;position:relative;
+}
+#modal h3{
+  margin:0;padding:11px 44px 11px 15px;font-size:13px;letter-spacing:.14em;color:var(--gold2);
+  border-bottom:1px solid var(--line);position:sticky;top:0;
+  background:linear-gradient(180deg,#161e29,#141b25);z-index:2;
+}
+#modal .mbody{padding:14px 15px 18px}
+#close{
+  position:absolute;top:7px;right:9px;width:28px;height:28px;border-radius:6px;
+  background:var(--panel2);border:1px solid var(--line2);color:var(--ink);cursor:pointer;
+  font-size:15px;line-height:1;z-index:3;
+}
+#close:hover{color:var(--gold2);border-color:var(--gold-dim)}
+.mbody p{margin:0 0 10px}
+.mbody .lead{color:var(--gold2)}
+.mbody .fig{display:block;margin:10px auto;max-width:100%}
+.dim{color:var(--ink-dim);font-size:12.5px}
+.mono{font-family:var(--mono)}
+kbd{font-family:var(--mono);background:#0a0e14;border:1px solid var(--line2);border-radius:4px;padding:1px 5px;font-size:12px;color:var(--cyan)}
+
+/* ---------- toast ---------- */
+#toasts{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:200;
+  display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none;width:min(92vw,460px)}
+.toast{
+  background:rgba(18,24,33,.97);border:1px solid var(--gold-dim);border-radius:8px;
+  padding:8px 14px;font-size:12.5px;color:var(--gold2);box-shadow:var(--shadow);
+  animation:tin .3s ease-out; text-align:center;
+}
+.toast.ok{border-color:rgba(143,224,160,.6);color:var(--green)}
+.toast.ng{border-color:rgba(224,139,122,.6);color:var(--red)}
+@keyframes tin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* ---------- devices (generic) ---------- */
+.ctlrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.ctlrow label{font-size:12px;color:var(--ink-dim);display:flex;align-items:center;gap:6px}
+.ctlrow input[type=range]{width:150px;accent-color:var(--gold)}
+.ctlrow input[type=number],.ctlrow input[type=text],.ctlrow select{
+  background:#0a0e14;border:1px solid var(--line2);border-radius:5px;color:var(--cyan);
+  padding:4px 7px;font-family:var(--mono);font-size:13px;width:88px;
+}
+.btn{
+  background:var(--panel2);border:1px solid var(--line2);border-radius:6px;color:var(--ink);
+  padding:5px 12px;font-size:12.5px;cursor:pointer;font-family:inherit;
+}
+.btn:hover{border-color:var(--gold-dim);color:var(--gold2)}
+.btn.primary{background:var(--gold-dim);color:#0a0d12;border-color:var(--gold-dim);font-weight:700}
+.btn.primary:hover{background:var(--gold)}
+canvas.screen{display:block;width:100%;background:#05070b;border:1px solid var(--line2);border-radius:8px;image-rendering:pixelated}
+.readout{font-family:var(--mono);font-size:12px;color:var(--cyan);background:#05070b;
+  border:1px solid var(--line);border-radius:6px;padding:6px 9px;white-space:pre-wrap;word-break:break-all}
+
+
+.quest.big{border-color:var(--gold-dim);background:rgba(227,193,104,.07)}
+.marks{background:#c9a24a;color:#43300c;border-radius:8px;padding:10px 12px;margin:10px 0}
+.marks .cap{font-size:11px;letter-spacing:.08em;margin-bottom:6px;opacity:.75}
+.markrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:5px 0}
+.mk{display:inline-block;background:#43300c;flex:none}
+.mk.one{width:3px;height:20px}
+.mk.zero{width:11px;height:3px;margin:9px 0}
+.grp{font-family:var(--mono);font-size:16px;color:#eef4fb;background:#39434f;border-radius:4px;padding:2px 6px;letter-spacing:-2px}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px;margin:8px 0}
+.tbl th,.tbl td{border:1px solid var(--line);padding:4px 8px;text-align:left}
+.tbl th{color:var(--gold-dim);font-weight:600}
+hr{border:0;border-top:1px solid var(--line)}
+
+/* ---------- title screen ---------- */
+#title{position:fixed;inset:0;z-index:300;background:radial-gradient(ellipse at 50% 40%,#101823,#03050a 70%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:22px;text-align:center}
+#title.hide{display:none}
+#title .tt{font-size:clamp(21px,5.4vw,38px);letter-spacing:.2em;color:var(--gold2);margin:0;font-weight:600}
+#title .ts{font-size:11px;letter-spacing:.42em;color:var(--gold-dim);margin:0}
+#title p.lead2{max-width:620px;font-size:13.5px;color:var(--ink);margin:0}
+#title .credit{font-size:11px;color:var(--ink-dim)}
+#tdisc{width:min(46vw,180px);aspect-ratio:1;animation:spin 26s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+
+<div id="app">
+  <header>
+    <h1>ゴールデンレコード<small>VOYAGER · THE GOLDEN RECORD</small></h1>
+    <div class="spacer"></div>
+    <div id="progress"></div>
+    <button class="hbtn" id="btnAfter" style="display:none">あとがき</button>
+    <button class="hbtn" id="btnHelp">遊び方</button>
+    <button class="hbtn" id="btnReset">最初から</button>
+  </header>
+
+  <div id="main">
+    <!-- 左: 本棚 -->
+    <div class="col col-left">
+      <div class="card">
+        <h2>資 料 棚</h2>
+        <div class="body" id="shelf"></div>
+      </div>
+      <div class="card" id="storyCard">
+        <h2>状 況</h2>
+        <div class="body" id="story" style="font-size:12.5px"></div>
+      </div>
+    </div>
+
+    <!-- 中央: ディスク -->
+    <div class="col col-center">
+      <div class="card">
+        <h2 id="discTitle">円 盤</h2>
+        <div id="stage">
+          <div id="discCtl">
+            <button class="pill on" data-face="front">表（ジャケット）</button>
+            <button class="pill" data-face="back">裏（記録面）</button>
+            <button class="pill" id="btnShowHot">◎ 調べられる場所</button>
+            <button class="pill" id="btnSwapDisc" style="display:none">◆ 異星の円盤へ</button>
+          </div>
+          <div id="discWrap">
+            <div id="disc">
+              <div class="face front" id="faceFront"></div>
+              <div class="face back" id="faceBack"></div>
+            </div>
+          </div>
+          <div id="caption">気になるところをクリック（タップ）して観察しよう。</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右: 装置 + ノート -->
+    <div class="col col-right">
+      <div class="card">
+        <h2>装 置</h2>
+        <div class="body" id="devices"></div>
+      </div>
+      <div class="card">
+        <h2>調 査 ノ ー ト</h2>
+        <div id="tabs">
+          <button class="on" data-tab="quests">謎</button>
+          <button data-tab="notes">記録</button>
+        </div>
+        <div class="tabpane on" id="pane-quests"></div>
+        <div class="tabpane" id="pane-notes"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="veil"><div id="modal"><button id="close">✕</button><h3></h3><div class="mbody"></div></div></div>
+<div id="toasts"></div>
+
+<div id="title">
+  <svg id="tdisc" viewBox="0 0 200 200"><g id="tdiscG"></g></svg>
+  <h1 class="tt">ゴールデンレコード</h1>
+  <p class="ts">A PUZZLE ABOUT THE VOYAGER GOLDEN RECORD</p>
+  <p class="lead2"></p>
+  <button class="btn primary" id="btnStart" style="padding:10px 34px;font-size:14px;letter-spacing:.2em">は じ め る</button>
+  <p class="credit"></p>
+</div>
+
+<script>
+"use strict";
+/* ======================================================================
+   ゴールデンレコード ― 星へのラブレター
+   単一ファイル・外部リソース無し。ここから下がすべてのロジック。
+   ====================================================================== */
+
+/* ---------- 小道具 ---------- */
+const $  = (s,r)=> (r||document).querySelector(s);
+const $$ = (s,r)=> Array.from((r||document).querySelectorAll(s));
+const el = (tag,attrs,html)=>{ const n=document.createElement(tag);
+  if(typeof attrs==='string') n.className=attrs;
+  else if(attrs) for(const k in attrs){ if(k==='class') n.className=attrs[k]; else n.setAttribute(k,attrs[k]); }
+  if(html!=null) n.innerHTML=html; return n; };
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+
+/* 解答の表記ゆれ吸収: 全角→半角、カタカナ→ひらがな、記号/空白除去 */
+function norm(s){
+  if(s==null) return '';
+  let t = String(s).trim().toLowerCase();
+  t = t.replace(/[Ａ-Ｚａ-ｚ０-９．]/g, c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0));
+  t = t.replace(/[ァ-ヶ]/g, c=>String.fromCharCode(c.charCodeAt(0)-0x60)); // カタカナ→ひらがな
+  t = t.replace(/[ー－—–‐]/g,'ー');   // 長音記号はまとめる（ASCIIの - は下で除去）
+  // 数字にはさまれた小数点だけは残す（3.6 と 36 を別物として扱うため）
+  t = t.replace(/\./g, (m, i)=> (/[0-9]/.test(t[i-1]||'') && /[0-9]/.test(t[i+1]||'')) ? '.' : '');
+  t = t.replace(/[\s、。,\/\-_'"！!？?「」『』（）()\[\]]/g,'');
+  t = t.replace(/[ぁぃぅぇぉっゃゅょゎ]/g, c=>'あいうえおつやゆよわ'['ぁぃぅぇぉっゃゅょゎ'.indexOf(c)]); // 小書き→大書き
+  t = t.replace(/[がぎぐげござじずぜぞだぢづでどばびぶべぼ]/g, c=>'かきくけこさしすせそたちつてとはひふへほ'['がぎぐげござじずぜぞだぢづでどばびぶべぼ'.indexOf(c)]);
+  t = t.replace(/[ぱぴぷぺぽ]/g, c=>'はひふへほ'['ぱぴぷぺぽ'.indexOf(c)]);
+  return t;
+}
+function matchAns(input, answers, strict){
+  const n = norm(input); if(!n) return false;
+  return answers.some(a=>{ const m = norm(a);
+    if(m===n) return true;
+    if(strict) return false;                           // 数で答える問いは部分一致させない
+    if(m.length>=2 && n.includes(m)) return true;      // 「白い丸」→「まる」
+    if(n.length>=2 && m.includes(n)) return true;      // 「グリーゼ」→「グリーゼ445」
+    return false; });
+}
+/* 「4万年後」「約四万」なども数として読む */
+function numOf(str){
+  let t = norm(str).replace(/やく|およそ|ほど|くらい|ぐらい/g,'');
+  t = t.replace(/[〇一二三四五六七八九]/g, c=>String('〇一二三四五六七八九'.indexOf(c)));
+  t = t.replace(/十/g,'0');
+  const man = t.match(/([0-9]+(?:\.[0-9]+)?)\s*[万萬]/);
+  if(man) return parseFloat(man[1])*10000;
+  const oku = t.match(/([0-9]+(?:\.[0-9]+)?)\s*億/);
+  if(oku) return parseFloat(oku[1])*1e8;
+  const m = t.match(/-?[0-9]+(?:\.[0-9]+)?/);
+  return m? parseFloat(m[0]) : NaN;
+}
+
+/* ---------- セーブ ---------- */
+const SAVEKEY='goldenrecord.v1';
+const S = {
+  started:false, disc:'voyager', face:'front',
+  seen:{},      // 観察済みホットスポット
+  notes:[],     // 取得した記録カード id
+  solved:{},    // 解けた謎 id -> true
+  hints:{},     // 謎id -> 開いたヒント数
+  dev:{},       // 装置の状態
+  flags:{},     // 進行フラグ
+};
+function save(){ try{ localStorage.setItem(SAVEKEY, JSON.stringify(S)); }catch(e){} }
+function load(){ try{ const j=localStorage.getItem(SAVEKEY); if(j) Object.assign(S, JSON.parse(j)); }catch(e){} }
+function resetAll(){ if(!confirm('最初からやり直します。よろしいですか？')) return;
+  try{ localStorage.removeItem(SAVEKEY); }catch(e){} location.reload(); }
+
+/* ---------- 通知 ---------- */
+function toast(msg, kind){
+  const t = el('div','toast'+(kind?' '+kind:''), msg);
+  $('#toasts').appendChild(t);
+  setTimeout(()=>{ t.style.transition='opacity .4s'; t.style.opacity='0';
+    setTimeout(()=>t.remove(),420); }, 2600);
+}
+
+/* ---------- モーダル ---------- */
+let modalOnClose=null;
+function openModal(title, bodyNodeOrHtml, onClose){
+  $('#modal h3').textContent = title;
+  const b = $('#modal .mbody'); b.innerHTML='';
+  if(typeof bodyNodeOrHtml==='string') b.innerHTML=bodyNodeOrHtml; else b.appendChild(bodyNodeOrHtml);
+  $('#veil').classList.add('on'); modalOnClose=onClose||null;
+  b.scrollTop=0; $('#modal').scrollTop=0;
+}
+function closeModal(){
+  $('#veil').classList.remove('on');
+  if(modalOnClose){ const f=modalOnClose; modalOnClose=null; f(); }
+}
+$('#close').onclick=closeModal;
+$('#veil').addEventListener('click', e=>{ if(e.target.id==='veil') closeModal(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+
+/* ---------- 星空背景 ---------- */
+(function stars(){
+  const c=$('#stars'), x=c.getContext('2d'); let w,h,pts=[];
+  function init(){
+    w=c.width=innerWidth; h=c.height=innerHeight; pts=[];
+    const n=Math.round(w*h/9000);
+    for(let i=0;i<n;i++) pts.push({x:Math.random()*w,y:Math.random()*h,
+      r:Math.random()*1.15+.25, a:Math.random()*.6+.15, s:Math.random()*.014+.003, p:Math.random()*6.28});
+    draw(0);
+  }
+  function draw(t){
+    x.clearRect(0,0,w,h);
+    for(const p of pts){
+      const a=p.a*(0.65+0.35*Math.sin(t*p.s+p.p));
+      x.fillStyle='rgba(210,225,245,'+a.toFixed(3)+')';
+      x.beginPath(); x.arc(p.x,p.y,p.r,0,6.2832); x.fill();
+    }
+    requestAnimationFrame(draw);
+  }
+  addEventListener('resize', ()=>{ w=c.width=innerWidth; h=c.height=innerHeight; });
+  init();
+})();
+/* ======================================================================
+   SVG 作画ヘルパー：金属に刻まれた線画の質感で描く
+   ====================================================================== */
+const SVGNS='http://www.w3.org/2000/svg';
+function svgTag(inner, extra){
+  return '<svg viewBox="0 0 1000 1000" xmlns="'+SVGNS+'" '+(extra||'')+'>'+inner+'</svg>';
+}
+/* 2進数を | (1) と — (0) の並びで描く。
+   x,y は左端・中心線。dir='h' 横書き / 'v' 縦書き。msb first。 */
+function binMarks(bits, x, y, opt){
+  opt = opt||{};
+  const g = opt.gap || 13, len = opt.len || 20, dir = opt.dir||'h', sw = opt.sw||3.4;
+  let out = '';
+  for(let i=0;i<bits.length;i++){
+    const b = bits[i];
+    if(dir==='h'){
+      const cx = x + i*g;
+      out += b==='1'
+        ? `<line x1="${cx}" y1="${y-len/2}" x2="${cx}" y2="${y+len/2}"/>`
+        : `<line x1="${cx-g*0.27}" y1="${y}" x2="${cx+g*0.27}" y2="${y}"/>`;
+    }else{
+      const cy = y + i*g;
+      out += b==='1'
+        ? `<line x1="${x-len/2}" y1="${cy}" x2="${x+len/2}" y2="${cy}"/>`
+        : `<line x1="${x}" y1="${cy-g*0.34}" x2="${x}" y2="${cy+g*0.34}"/>`;
+    }
+  }
+  return `<g stroke-width="${sw}">${out}</g>`;
+}
+/* 数値→2進文字列 */
+const bin = n => n.toString(2);
+
+/* ---- ゲーム中で使う本物の数値（実物のジャケットから採取） ------------- */
+const F = {
+  H_FREQ: 1420405751.768,            // 水素21cm線 [Hz]
+  get H_T(){ return 1/this.H_FREQ }, // = 0.704024183… ns
+  /* 左上・レコード外周に沿って刻まれた33桁 = 1回転の時間 */
+  ROT_BIN : '100110000110010000000000000000000',      // 5,113,380,864 → 3.5999 s
+  /* 左中・側面図の下の43桁 = 片面の再生時間（5行に折り返し 9/10/10/10/4） */
+  SIDE_BIN: '1000010110000000000000000000000000000000000', // 4,587,025,072,128 → 3229.4 s
+  /* 右上・波形の下の24桁 = 走査線1本の時間（3行に折り返し 12/8/4） */
+  SCAN_BIN: '101101001100000000000000',               // 11,845,632 → 8.3396 ms
+  /* 右中・画像フレームの左上の5桁 = 明るさの段階数 */
+  GRAY_BIN: '10000',                                  // 16
+  /* 右中・画像フレームの脇に縦書きで刻まれた10桁 = 1枚あたりの走査線の本数 */
+  LINE_BIN: '1000000000',                             // 512
+  LINES: 512, ROWS: 384,             // 縦線512本 × 横384 (4:3)
+};
+F.ROT_N  = parseInt(F.ROT_BIN,2);
+F.SIDE_N = parseInt(F.SIDE_BIN,2);
+F.SCAN_N = parseInt(F.SCAN_BIN,2);
+/* ======================================================================
+   ボイジャーのジャケット図解（表）— 実物の6要素を再現
+   ====================================================================== */
+function plateDefs(id){
+  return `<defs>
+    <radialGradient id="g${id}" cx="38%" cy="30%" r="82%">
+      <stop offset="0%" stop-color="#f3dc9c"/><stop offset="42%" stop-color="#d9b45c"/>
+      <stop offset="78%" stop-color="#a9822f"/><stop offset="100%" stop-color="#6d5217"/>
+    </radialGradient>
+    <linearGradient id="sheen${id}" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fff" stop-opacity=".26"/>
+      <stop offset="30%" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="62%" stop-color="#fff" stop-opacity=".10"/>
+      <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>`;
+}
+function ringTexture(n, r0, r1, op){
+  let s='';
+  for(let i=0;i<n;i++){ const r=r0+(r1-r0)*i/n;
+    s+=`<circle cx="500" cy="500" r="${r.toFixed(1)}" fill="none" stroke="#000" stroke-opacity="${op}" stroke-width=".7"/>`; }
+  return s;
+}
+
+function coverFront(){ return svgTag(coverFrontInner(true)); }
+function coverFrontInner(withHot){
+  const E = '#43300c';                 // 刻線の色
+  let s = plateDefs('F');
+  s += `<circle cx="500" cy="500" r="499" fill="url(#gF)"/>`;
+  s += ringTexture(70, 120, 495, .05);
+  s += `<circle cx="500" cy="500" r="499" fill="url(#sheenF)"/>`;
+  s += `<circle cx="500" cy="500" r="496" fill="none" stroke="#5c4413" stroke-width="5"/>`;
+  s += `<g stroke="${E}" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">`;
+
+  /* ===== 左上：レコードを上から見た図＋カートリッジ／外周に1回転の時間 ===== */
+  s += `<g>
+    <circle cx="266" cy="228" r="96"/>
+    <circle cx="266" cy="228" r="31"/>
+    <circle cx="266" cy="228" r="6" fill="${E}"/>
+    <rect x="374" y="204" width="70" height="46" rx="5"/>
+    <path d="M374 227 l-12 0"/>
+    <path d="M362 227 l11 -7 l0 14 z" fill="${E}" stroke="none"/>
+    <path d="M409 204 l0 -24 M396 180 l26 0"/>
+  </g>`;
+  s += rimBinary(266, 228, 118, F.ROT_BIN, 236, 8.35, [332,28]);
+
+  /* ===== 左中：真横から見た図＋片面の再生時間（43桁を5行） ===== */
+  s += `<g>
+    <path d="M168 428 L372 428 M168 440 L372 440"/>
+    <path d="M168 428 A7 6 0 0 0 168 440 M372 428 A7 6 0 0 1 372 440"/>
+    <line x1="270" y1="418" x2="270" y2="450"/>
+    <rect x="326" y="382" width="58" height="32" rx="4"/>
+    <path d="M355 414 l0 14"/>
+  </g>`;
+  s += binRows(F.SIDE_BIN, [9,10,10,10,4], 154, 484, {gap:11.4,len:16,sw:2.8,lh:21});
+
+  /* ===== 左下：パルサー地図 ===== */
+  s += pulsarMapSVG(250, 780, 1.0, E);
+
+  /* ===== 右上：映像信号の波形＋走査線1本の時間（24桁を3行） ===== */
+  s += `<g>
+    <path d="M566 214 l0 -46 M566 214 l300 0" stroke-width="2.6" opacity=".5"/>`;
+  // 開始の基準バースト（高い周波数の束）
+  let bz='';
+  for(let i=0;i<14;i++){ const x=572+i*3.6; bz += (i?'L':'M')+x+' '+(i%2?188:158)+' '; }
+  s += `<path d="${bz}" stroke-width="2.4"/>`;
+  // 各走査線の信号（前に下向き同期パルス）
+  let wv='M624 196 ';
+  for(let k=0;k<3;k++){
+    const x0=624+k*74;
+    wv += `L${x0+4} 196 L${x0+4} 212 L${x0+11} 212 L${x0+11} 196 `;
+    wv += `q10 0 13 -14 q4 -18 12 -18 q8 0 12 16 q4 16 12 16 q9 0 12 -12 q4 -14 12 -14 q9 0 12 26 `;
+  }
+  s += `<path d="${wv}" stroke-width="3"/>`;
+  s += binMarks('1',   632, 146, {gap:12,len:18,sw:2.8});
+  s += binMarks('10',  700, 146, {gap:12,len:18,sw:2.8});
+  s += binMarks('11',  774, 146, {gap:12,len:18,sw:2.8});
+  s += `</g>`;
+  s += binRows(F.SCAN_BIN, [12,8,4], 606, 248, {gap:11.4,len:16,sw:2.8,lh:21});
+
+  /* ===== 右中上：走査のきっかけ（のこぎり波） ===== */
+  s += `<g>
+    <path d="M604 356 l34 -34 l0 34 l34 -34 l0 34 l34 -34 l0 34" stroke-width="3"/>
+    <path d="M596 356 l124 0" stroke-width="2.4" opacity=".5"/>
+  </g>`;
+
+  /* ===== 右中：画像のフレーム（縦線512本）＋階調16 ===== */
+  s += `<g>
+    <rect x="600" y="392" width="196" height="148"/>`;
+  for(let i=1;i<=9;i++) s += `<line x1="${600+i*7.4}" y1="394" x2="${600+i*7.4}" y2="538" stroke-width="2.4"/>`;
+  s += `<path d="M676 396 l0 108" stroke-width="2.6"/>
+        <path d="M676 512 l-7 -11 l14 0 z" fill="${E}" stroke="none"/>
+        <path d="M700 560 l70 0" stroke-width="2.6"/>
+        <path d="M770 560 l-12 -7 l0 14 z" fill="${E}" stroke="none"/>
+      </g>`;
+  s += binRows(F.GRAY_BIN, [5], 606, 378, {gap:12,len:16,sw:2.6,lh:18});
+  s += binMarks(F.LINE_BIN, 830, 400, {gap:15,len:20,sw:2.9,dir:'v'});
+
+  /* ===== 右中下：いちばん最初に出る画像＝円 ===== */
+  s += `<g><circle cx="700" cy="646" r="62" stroke-width="5.5"/></g>`;
+
+  /* ===== 右下：水素原子のふたつの状態 ===== */
+  s += hydrogenSVG(706, 806, E, .86);
+
+  /* ===== ウラン238 の電着スポット ===== */
+  s += `<g><circle cx="452" cy="106" r="23" stroke-width="3"/>`;
+  for(let i=0;i<8;i++){ const a=i*Math.PI/4;
+    s += `<line x1="${(452+Math.cos(a)*9).toFixed(1)}" y1="${(106+Math.sin(a)*9).toFixed(1)}" x2="${(452+Math.cos(a)*21).toFixed(1)}" y2="${(106+Math.sin(a)*21).toFixed(1)}" stroke-width="2.2"/>`; }
+  s += `</g>`;
+  s += `</g>`;
+
+  /* ===== クリック領域 ===== */
+  const hs = [
+    ['plan',   126,  96, 348, 268, 'レコードを上から見た図と、外周をとりまく細かい刻み'],
+    ['elev',   118, 370, 300, 108, 'レコードを真横から見た図'],
+    ['sideNum',118, 470, 300, 118, '五段に折り返された長い刻み'],
+    ['pulsar',  86, 606, 350, 348, '中心から放射状にのびる線の図'],
+    ['wave',   552, 122, 340, 130, 'うねうねした線の図'],
+    ['scanNum',552, 232, 220,  84, '三段に折り返された刻み'],
+    ['saw',    578, 306, 190,  70, 'のこぎりの歯のような線'],
+    ['frame',  580, 380, 300, 200, '四角い枠と、たくさんの縦線'],
+    ['circle', 618, 578, 168, 140, 'なにも描かれていない、ただの円'],
+    ['hydro',  560, 730, 300, 190, 'ふたつの丸が線で結ばれた図'],
+    ['uran',   424,  78,  58,  58, '細い線が放射する小さな円'],
+  ];
+  HOTBOX.voyager = {}; hs.forEach(h=> HOTBOX.voyager[h[0]] = [h[1],h[2],h[3],h[4]]);
+  if(withHot) s += hs.map(h=>`<rect class="hot" fill="transparent" stroke="transparent" data-hs="${h[0]}" data-cap="${h[5]}" x="${h[1]}" y="${h[2]}" width="${h[3]}" height="${h[4]}" rx="14"><title>${h[5]}</title></rect>`).join('');
+  return s;
+}
+/* 図解の一部分を拡大して見る（同じ図をviewBoxで切り取るだけ） */
+const HOTBOX = {};
+function zoomCover(which, id, pad){
+  const box = (HOTBOX[which]||{})[id]; if(!box) return '';
+  pad = pad==null? 18 : pad;
+  const [x,y,w,h] = box;
+  const inner = which==='alien' ? alienCoverInner(false) : coverFrontInner(false);
+  return `<svg viewBox="${x-pad} ${y-pad} ${w+pad*2} ${h+pad*2}" xmlns="${SVGNS}" class="fig" style="width:100%;max-width:520px;background:#c9a24a;border-radius:8px">${inner}</svg>`;
+}
+
+/* 円周に沿って2進数を刻む（1=半径方向の線 / 0=接線方向の短い線）
+   start: 開始角[deg] (0=東, 増える方向が画面上の時計回り), step: 1桁あたりの角度
+   skip : [from,to] この角度範囲にはカートリッジがあるので刻まない */
+function rimBinary(cx, cy, r, bits, start, step, skip){
+  let out='', ang=start, i=0, guard=0;
+  while(i<bits.length && guard++<400){
+    const a = ((ang%360)+360)%360;
+    const inSkip = skip && (skip[0]>skip[1] ? (a>=skip[0]||a<=skip[1]) : (a>=skip[0]&&a<=skip[1]));
+    if(!inSkip){
+      const rad=a*Math.PI/180, c=Math.cos(rad), sn=Math.sin(rad);
+      if(bits[i]==='1'){
+        out += `<line x1="${(cx+c*(r-9)).toFixed(1)}" y1="${(cy+sn*(r-9)).toFixed(1)}" x2="${(cx+c*(r+9)).toFixed(1)}" y2="${(cy+sn*(r+9)).toFixed(1)}" stroke-width="2.6"/>`;
+      }else{
+        const a1=(a-2.6)*Math.PI/180, a2=(a+2.6)*Math.PI/180;
+        out += `<line x1="${(cx+Math.cos(a1)*r).toFixed(1)}" y1="${(cy+Math.sin(a1)*r).toFixed(1)}" x2="${(cx+Math.cos(a2)*r).toFixed(1)}" y2="${(cy+Math.sin(a2)*r).toFixed(1)}" stroke-width="2.6"/>`;
+      }
+      i++;
+    }
+    ang += step;
+  }
+  return `<g>${out}</g>`;
+}
+/* 2進数を複数行に折り返して刻む（行の区切りは rows で指定） */
+function binRows(bits, rows, x, y, opt){
+  let out='', p=0;
+  for(let r=0;r<rows.length;r++){
+    out += binMarks(bits.slice(p, p+rows[r]), x, y + r*(opt.lh||20), opt);
+    p += rows[r];
+  }
+  return `<g>${out}</g>`;
+}
+
+/* パルサー地図：14本の線＋銀河中心への1本
+   bin/P は実物のジャケットから読み取られた本物の値。
+   deg = 銀河中心方向の線から測った角度、sgn = その線の上下、d = 相対距離（銀河中心=100）
+   pdot = 1秒あたり何秒周期が伸びるか（実測値。異星の円盤の年代決定に使う） */
+const PULSARS = [
+  {i:1, id:'B1727-47', bin:'1000110001111100100011011101010',  P:0.829683, deg: 17, sgn:-1, d:27, pdot:1.636e-13},
+  {i:2, id:'B1451-68', bin:'10110010011000101011101101111',    P:0.263377, deg: 49, sgn: 1, d: 2, pdot:9.8e-17},
+  {i:3, id:'B1240-64', bin:'100000110110010110001001111000',   P:0.388000, deg: 58, sgn:-1, d:56, pdot:4.5006e-15},
+  {i:4, id:'B0833-45', bin:'111100011011011001010100111',      P:0.089219, deg: 95, sgn: 1, d:15, pdot:1.25008e-13},
+  {i:5, id:'B0950+08', bin:'10101011011001101100101000011',    P:0.253065, deg:129, sgn:-1, d: 1, pdot:2.29758e-16},
+  {i:6, id:'B0823+26', bin:'101100111011010101011110001011',   P:0.530660, deg:162, sgn: 1, d: 2, pdot:1.7e-15},
+  {i:7, id:'B0531+21', bin:'10110011100000101010000010',       P:0.033130, deg:174, sgn:-1, d:18, pdot:4.22765e-13},
+  {i:8, id:'B0525+21', bin:'100111101000110101000100111000100',P:3.745491, deg:177, sgn: 1, d:11, pdot:4.00530e-14},
+  {i:9, id:'B0329+54', bin:'111100011111100011111000010110',   P:0.714519, deg:145, sgn: 1, d: 7, pdot:2.048265e-15},
+  {i:10,id:'B2217+47', bin:'101101100101101001000010110001',   P:0.538467, deg: 97, sgn:-1, d:10, pdot:2.8e-15},
+  {i:11,id:'B2016+28', bin:'101111001111001110011000001101',   P:0.557953, deg: 68, sgn: 1, d: 3, pdot:1.5e-16},
+  {i:12,id:'B1933+16', bin:'11110010111110001110100011110',    P:0.358735, deg: 52, sgn:-1, d:40, pdot:6.0e-15},
+  {i:13,id:'B1929+10', bin:'10011001011010111010010111000',    P:0.226517, deg: 45, sgn: 1, d: 1, pdot:1.157426e-15},
+  {i:14,id:'B1642-03', bin:'100000110100101010001110101100',   P:0.387689, deg: 16, sgn:-1, d: 4, pdot:1.8e-15},
+];
+const relLen = d => 0.42 + 0.58*Math.sqrt(d/56);
+
+function pulsarMapSVG(cx, cy, scale, E, opt){
+  opt = opt||{};
+  const R = 168*scale, list = opt.list||PULSARS;
+  let s = `<g>`;
+  s += `<circle cx="${cx}" cy="${cy}" r="${4.5*scale}" fill="${E}" stroke="none"/>`;
+  for(const p of list){
+    const a = (p.deg*p.sgn)*Math.PI/180, L = R*relLen(p.d);
+    const c=Math.cos(a), sn=Math.sin(a);
+    const x2 = cx+c*L, y2 = cy+sn*L;
+    s += `<line x1="${cx}" y1="${cy}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke-width="${2.4*scale}"/>`;
+    const bits = p.bin;
+    const step = (L-16*scale)/bits.length;
+    const nx = -sn, ny = c;
+    for(let i=0;i<bits.length;i++){
+      const dd = 12*scale + step*i;
+      const bx = cx+c*dd, by = cy+sn*dd;
+      if(bits[i]==='1'){
+        s += `<line x1="${(bx-nx*4.6*scale).toFixed(1)}" y1="${(by-ny*4.6*scale).toFixed(1)}" x2="${(bx+nx*4.6*scale).toFixed(1)}" y2="${(by+ny*4.6*scale).toFixed(1)}" stroke-width="${1.7*scale}"/>`;
+      }else{
+        s += `<line x1="${(bx-c*1.9*scale).toFixed(1)}" y1="${(by-sn*1.9*scale).toFixed(1)}" x2="${(bx+c*1.9*scale).toFixed(1)}" y2="${(by+sn*1.9*scale).toFixed(1)}" stroke-width="${1.7*scale}"/>`;
+      }
+    }
+    // 線の端の目盛＝銀河面からのずれ
+    const z = ((p.i*37)%13-6)*1.1*scale;
+    s += `<line x1="${x2.toFixed(1)}" y1="${y2.toFixed(1)}" x2="${(x2+nx*z).toFixed(1)}" y2="${(y2+ny*z).toFixed(1)}" stroke-width="${2*scale}"/>`;
+  }
+  // 銀河中心へ伸びる線（2進数が付かない唯一の線）
+  s += `<line x1="${cx}" y1="${cy}" x2="${(cx+R*1.5).toFixed(1)}" y2="${cy}" stroke-width="${3.2*scale}"/>`;
+  s += `</g>`;
+  return s;
+}
+
+/* 水素原子の超微細遷移図（実物の描写：左＝電子と陽子が逆向き／右＝同じ向き） */
+function hydrogenSVG(cx, cy, E, scale){
+  const k = scale||1, d = 78*k, r = 46*k;
+  const arrow = (x,y,dir)=>{      // dir=-1:上向き / +1:下向き
+    const h = 15*k, t = 5*k;
+    return `<line x1="${x}" y1="${y-dir*h}" x2="${x}" y2="${y+dir*h}" stroke-width="${2.6*k}"/>`
+         + `<path d="M${x} ${y+dir*(h+t)} l${-t} ${-dir*t} l${2*t} 0 z" fill="${E}" stroke="none"/>`;
+  };
+  let s = `<g>`;
+  // 左：電子が上向き・陽子が下向き（逆平行＝低いほうの状態）
+  // 右：電子も陽子も下向き（平行＝高いほうの状態）
+  [[-1,-1,1],[1,1,1]].forEach(([sgn, eDir, pDir])=>{
+    const x = cx + sgn*d, ey = cy - r;
+    s += `<circle cx="${x}" cy="${cy}" r="${r}"/>`;
+    s += `<circle cx="${x}" cy="${cy}" r="${8*k}" fill="${E}" stroke="none"/>`;   // 陽子
+    s += arrow(x + 20*k, cy, pDir);
+    s += `<circle cx="${x}" cy="${ey}" r="${6.5*k}" fill="${E}" stroke="none"/>`; // 電子
+    s += arrow(x + 18*k, ey, eDir);
+  });
+  // 2つの状態を結ぶ線と、その中央から下に垂れる「1」
+  s += `<line x1="${cx-d+r}" y1="${cy}" x2="${cx+d-r}" y2="${cy}" stroke-width="${2.8*k}"/>`;
+  s += `<line x1="${cx}" y1="${cy+3*k}" x2="${cx}" y2="${cy+40*k}" stroke-width="${3.2*k}"/>`;
+  s += `</g>`;
+  return s;
+}
+
+/* ======================================================================
+   ボイジャーの記録面（裏）
+   ====================================================================== */
+function coverBack(){
+  let s = `<defs>
+    <radialGradient id="gB" cx="42%" cy="34%" r="80%">
+      <stop offset="0%" stop-color="#e8cf8e"/><stop offset="30%" stop-color="#c2a054"/>
+      <stop offset="70%" stop-color="#8d6f2c"/><stop offset="100%" stop-color="#54401a"/>
+    </radialGradient>
+    <linearGradient id="sheenB" x1="0" y1="0" x2=".9" y2="1">
+      <stop offset="0%" stop-color="#fff" stop-opacity=".30"/>
+      <stop offset="26%" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="55%" stop-color="#fff" stop-opacity=".16"/>
+      <stop offset="72%" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#fff" stop-opacity=".12"/>
+    </linearGradient>
+  </defs>`;
+  s += `<circle cx="500" cy="500" r="499" fill="url(#gB)"/>`;
+  // 溝：3つの帯で密度と色味を変える（外＝画像 / 中＝声と音 / 内＝音楽）
+  const bands = [[320,492,.42,116,1.5],[238,316,.26,50,1.6],[154,234,.30,54,1.5]];
+  for(const [r0,r1,op,n,w] of bands){
+    for(let i=0;i<n;i++){ const r=r0+(r1-r0)*i/n;
+      s+=`<circle cx="500" cy="500" r="${r.toFixed(1)}" fill="none" stroke="#241a06" stroke-opacity="${op}" stroke-width="${w}"/>`;
+      s+=`<circle cx="500" cy="500" r="${(r+(r1-r0)/n/2).toFixed(1)}" fill="none" stroke="#ffeab6" stroke-opacity="${op*0.5}" stroke-width="${w*0.7}"/>`; }
+  }
+  for(const r of [318,236,152]) s+=`<circle cx="500" cy="500" r="${r}" fill="none" stroke="#241a06" stroke-opacity=".62" stroke-width="3"/>`;
+  s += `<circle cx="500" cy="500" r="499" fill="url(#sheenB)"/>`;
+  // 中央ラベル
+  s += `<circle cx="500" cy="500" r="148" fill="#c8a656"/>`;
+  s += `<circle cx="500" cy="500" r="148" fill="url(#sheenB)"/>`;
+  s += `<circle cx="500" cy="500" r="148" fill="none" stroke="#5c4413" stroke-width="3"/>`;
+  s += `<circle cx="500" cy="500" r="22" fill="#0a0a0a"/>`;
+  s += `<g fill="#43300c" stroke="none" text-anchor="middle" font-family="Georgia,serif" letter-spacing="2">
+      <text x="500" y="418" font-size="26">THE SOUNDS</text>
+      <text x="500" y="448" font-size="26">OF EARTH</text>
+      <text x="500" y="560" font-size="13">UNITED STATES OF AMERICA</text>
+      <text x="500" y="580" font-size="13">PLANET EARTH</text>
+      <text x="500" y="606" font-size="12" opacity=".85">16 2/3 RPM</text>
+    </g>`;
+  // クリック領域（同心の帯）
+  s += `<circle class="hotr" fill="none" stroke="transparent" data-hs="grooveA" data-cap="いちばん外側の帯" cx="500" cy="500" r="405" stroke-width="174"/>`;
+  s += `<circle class="hotr" fill="none" stroke="transparent" data-hs="grooveB" data-cap="まん中の帯" cx="500" cy="500" r="275" stroke-width="80"/>`;
+  s += `<circle class="hotr" fill="none" stroke="transparent" data-hs="grooveC" data-cap="いちばん内側の帯" cx="500" cy="500" r="192" stroke-width="82"/>`;
+  s += `<circle class="hot" fill="transparent" stroke="transparent" data-hs="label" data-cap="中央のラベル" cx="500" cy="500" r="148"/>`;
+  return svgTag(s);
+}
+</script>
+<script>
+/* ======================================================================
+   画像データ ― すべて手続き的に描く（画像ファイルは使わない）
+   実物と同じ 512 本の縦線 × 384 で作る
+   ====================================================================== */
+const IMGW = 512, IMGH = 384;
+
+function pxCanvas(w,h){ const c=document.createElement('canvas'); c.width=w; c.height=h; return c; }
+function penSetup(g,w){ g.fillStyle='#000'; g.fillRect(0,0,IMGW,IMGH);
+  g.strokeStyle='#fff'; g.fillStyle='#fff'; g.lineWidth=w||5; g.lineJoin='round'; g.lineCap='round'; }
+const P_ = (g)=>({
+  c(x,y,r,fill){ g.beginPath(); g.arc(x,y,r,0,6.2832); fill?g.fill():g.stroke(); return this; },
+  l(...p){ g.beginPath(); g.moveTo(p[0],p[1]); for(let i=2;i<p.length;i+=2) g.lineTo(p[i],p[i+1]); g.stroke(); return this; },
+  poly(p,fill){ g.beginPath(); g.moveTo(p[0],p[1]); for(let i=2;i<p.length;i+=2) g.lineTo(p[i],p[i+1]); g.closePath(); fill?g.fill():g.stroke(); return this; },
+  r(x,y,w,h,fill){ g.beginPath(); g.rect(x,y,w,h); fill?g.fill():g.stroke(); return this; },
+  t(s,x,y,size,align){ g.font = (size||16)+'px "Courier New",monospace'; g.textAlign=align||'center';
+    g.textBaseline='middle'; g.fillText(s,x,y); return this; },
+});
+
+/* ---- ボイジャーの円盤に入っている絵 ---- */
+const PICS_V = [
+  { id:'circle', name:'円', draw(g){ penSetup(g,9); P_(g).c(256,192,120); } },
+  { id:'solar',  name:'太陽系の図', draw(g){ const p=P_(g); penSetup(g,4);
+      g.fillStyle='#fff'; p.c(56,192,26,true);
+      const d=[92,112,138,168,206,254,300,344,386], r=[5,7,8,6,17,15,12,11,5];
+      for(let i=0;i<9;i++){ p.c(56+d[i],192,r[i],true); }
+      p.l(30,300,470,300); g.lineWidth=3;
+      for(let i=0;i<9;i++){ p.l(56+d[i],300,56+d[i],292); }
+      // 3番目の惑星に印
+      g.lineWidth=4; p.l(56+d[2],150,56+d[2],120); p.poly([56+d[2],160, 56+d[2]-9,142, 56+d[2]+9,142],true);
+    } },
+  { id:'math', name:'数の定義', draw(g){ const p=P_(g); penSetup(g,5);
+      for(let n=1;n<=4;n++){ const y=70+ (n-1)*78;
+        for(let i=0;i<n;i++) p.c(80+i*34, y, 11, true);
+        const b=n.toString(2);
+        for(let i=0;i<b.length;i++){ const x=290+i*30;
+          if(b[i]==='1') p.l(x,y-16,x,y+16); else p.l(x-11,y,x+11,y); }
+      } } },
+  { id:'earth', name:'地球', draw(g){ const p=P_(g); penSetup(g,4);
+      p.c(256,192,142);
+      g.lineWidth=2.2;
+      for(const rx of [46,94]){ g.beginPath(); g.ellipse(256,192,rx,142,0,0,6.2832); g.stroke(); }
+      for(const dy of [-72,0,72]){ const hw=Math.sqrt(Math.max(0,142*142-dy*dy));
+        p.l(256-hw,192+dy,256+hw,192+dy); }
+      g.lineWidth=5;
+      // ユーラシアとアフリカ
+      g.beginPath(); g.moveTo(268,92);
+      g.bezierCurveTo(330,86,372,116,352,142); g.bezierCurveTo(336,164,300,150,292,166);
+      g.bezierCurveTo(286,182,306,196,302,222); g.bezierCurveTo(298,254,272,286,258,282);
+      g.bezierCurveTo(242,278,246,244,238,214); g.bezierCurveTo(230,186,206,178,214,152);
+      g.bezierCurveTo(222,124,244,96,268,92); g.stroke();
+      // 南北アメリカ
+      g.beginPath(); g.moveTo(150,120);
+      g.bezierCurveTo(178,110,190,134,178,150); g.bezierCurveTo(166,166,150,162,146,178);
+      g.bezierCurveTo(142,196,164,206,160,228); g.bezierCurveTo(156,252,138,268,128,258);
+      g.bezierCurveTo(118,248,128,222,122,198); g.bezierCurveTo(116,172,130,128,150,120); g.stroke();
+      // オセアニア
+      g.beginPath(); g.ellipse(348,250,30,20,-0.3,0,6.2832); g.stroke();
+    } },
+  { id:'dna', name:'DNAの構造', draw(g){ const p=P_(g); penSetup(g,4);
+      for(let s=0;s<2;s++){ g.beginPath();
+        for(let y=40;y<=344;y+=4){ const x=256+Math.sin((y/56)+s*Math.PI)*78; y===40?g.moveTo(x,y):g.lineTo(x,y); }
+        g.stroke(); }
+      g.lineWidth=3;
+      for(let y=52;y<=340;y+=19){ const a=256+Math.sin(y/56)*78, b=256+Math.sin(y/56+Math.PI)*78; p.l(a,y,b,y); } } },
+  { id:'human', name:'人', draw(g){ const p=P_(g); penSetup(g,5);
+      const fig=(cx,long)=>{ p.c(cx,74,26); p.l(cx,100,cx,214);
+        p.l(cx,120,cx-46,176); p.l(cx,120,cx+46,176);
+        p.l(cx,214,cx-30,320); p.l(cx,214,cx+30,320);
+        if(long){ g.lineWidth=3; p.poly([cx-26,50,cx-38,86,cx-30,110,cx+30,110,cx+38,86,cx+26,50],false); g.lineWidth=5; } };
+      fig(170,true); fig(342,false);
+      g.lineWidth=3; p.l(196,150,316,150); p.poly([326,150,310,142,310,158],true); p.poly([186,150,202,142,202,158],true);
+      p.t('1.7 m',256,352,22); } },
+  { id:'hand', name:'手のレントゲン', draw(g){ const p=P_(g); penSetup(g,4);
+      // てのひら
+      g.beginPath(); g.moveTo(196,300); g.bezierCurveTo(186,240,190,212,200,196);
+      g.lineTo(316,196); g.bezierCurveTo(326,212,330,240,320,300); g.stroke();
+      p.l(196,300,320,300);
+      // 4本の指（骨を3節で描く）
+      const fx=[210,244,278,310], ftop=[86,64,72,104];
+      for(let i=0;i<4;i++){
+        const x=fx[i], t=ftop[i];
+        p.l(x-11,196,x-11,t+16); p.l(x+11,196,x+11,t+16);
+        g.beginPath(); g.arc(x,t+16,11,Math.PI,0); g.stroke();
+        g.lineWidth=2.4;
+        p.l(x-11,150,x+11,150); p.l(x-11,116,x+11,116);
+        g.lineWidth=4;
+      }
+      // 親指
+      g.beginPath(); g.moveTo(200,230); g.bezierCurveTo(160,222,128,196,122,166); g.stroke();
+      g.beginPath(); g.moveTo(206,256); g.bezierCurveTo(166,250,140,222,136,186); g.stroke();
+      g.beginPath(); g.arc(128,172,12,Math.PI*1.2,Math.PI*0.35); g.stroke();
+      g.lineWidth=2.4; p.l(150,204,166,190);
+    } },
+  { id:'violin', name:'弦楽器', draw(g){ const p=P_(g); penSetup(g,4);
+      const body=(sx)=>{ g.beginPath();
+        g.moveTo(256,152);
+        g.bezierCurveTo(256+34*sx,152,256+52*sx,168,256+50*sx,196);
+        g.bezierCurveTo(256+48*sx,214,256+28*sx,220,256+28*sx,232);
+        g.bezierCurveTo(256+28*sx,246,256+56*sx,254,256+58*sx,286);
+        g.bezierCurveTo(256+60*sx,318,256+34*sx,336,256,336);
+        g.stroke(); };
+      body(1); body(-1);
+      // ネックと糸倉
+      p.l(256,152,256,72);
+      g.beginPath(); g.moveTo(240,72); g.bezierCurveTo(230,52,246,40,256,48);
+      g.bezierCurveTo(268,40,282,54,272,72); g.closePath(); g.stroke();
+      g.lineWidth=2.4;
+      // 弦
+      for(let i=-1;i<=2;i++) p.l(256+i*7-4,66,256+i*7-4,320);
+      // f字孔
+      for(const sx of [-1,1]){ g.beginPath();
+        g.moveTo(256+sx*28,232); g.bezierCurveTo(256+sx*20,248,256+sx*36,262,256+sx*26,282); g.stroke(); }
+      p.l(232,266,280,266);
+    } },
+  { id:'sunset', name:'夕暮れと鳥', draw(g){ const p=P_(g); penSetup(g,4);
+      p.c(256,240,80); p.l(20,300,492,300);
+      g.lineWidth=3;
+      for(const [x,y,s] of [[120,90,1],[170,120,.8],[356,100,1.1],[404,132,.75],[262,68,.9]]){
+        g.beginPath(); g.moveTo(x-22*s,y); g.quadraticCurveTo(x-11*s,y-13*s,x,y);
+        g.quadraticCurveTo(x+11*s,y-13*s,x+22*s,y); g.stroke(); } } },
+  { id:'credits', name:'ことばの一覧', draw(g){ const p=P_(g); penSetup(g,2);
+      g.fillStyle='#fff';
+      p.t('GREETINGS  55',256,24,20);
+      g.lineWidth=2; p.l(40,38,472,38);
+      const L=['SUMERIAN','AKKADIAN','HITTITE','ANCIENT GREEK','LATIN','ARABIC','ARAMAIC','HEBREW',
+        'PERSIAN','ARMENIAN','TURKISH','HINDI','BENGALI','URDU','NEPALI','PUNJABI','GUJARATI','MARATHI',
+        'SINHALA','TELUGU','KANNADA','ORIYA','RAJASTHANI','JAPANESE','KOREAN','MANDARIN','CANTONESE',
+        'WU','AMOY','VIETNAMESE','THAI','BURMESE','INDONESIAN','ILA','NYANJA','SOTHO','NGUNI','GANDA',
+        'QUECHUA','RUSSIAN','UKRAINIAN','POLISH','CZECH','SERBIAN','ROMANIAN','HUNGARIAN',
+        'ITALIAN','FRENCH','SPANISH','PORTUGUESE','DUTCH','GERMAN','SWEDISH','WELSH','ENGLISH'];
+      g.textAlign='left'; g.font='11px "Courier New",monospace';
+      const JI = L.indexOf('JAPANESE');
+      for(let i=0;i<L.length;i++){
+        const col=Math.floor(i/19), row=i%19;
+        const x=22+col*160, y=58+row*15.4;
+        g.fillText((i+1)+'.'+L[i], x, y);
+        if(i===JI){ g.font='bold 15px "Courier New",monospace'; g.fillText('*', x-14, y+1);
+                    g.font='11px "Courier New",monospace'; }
+      }
+      // いちばん下：＊の行がどこにあるかを示す「回転の印」＋2進数
+      g.lineWidth=2; p.l(40,344,472,344);
+      g.font='bold 17px "Courier New",monospace'; g.fillText('*', 44, 368);
+      g.lineWidth=3;
+      p.c(84,366,15);
+      g.beginPath(); g.arc(84,366,22,-2.6,-0.5); g.stroke();
+      p.poly([100,352,92,344,104,342],true);
+      g.fillStyle='#fff'; p.c(84,366,3,true);
+      const bits=GREET_ROT.toString(2);
+      // 数の始まりと終わりを示す、背の高い二重の縦棒
+      p.l(118,346,118,382); p.l(125,346,125,382);
+      for(let i=0;i<bits.length;i++){ const bx=150+i*15;
+        if(bits[i]==='1') p.l(bx,358,bx,376); else p.l(bx-6,367,bx+6,367); }
+      const ex=150+bits.length*15+14;
+      p.l(ex,346,ex,382); p.l(ex+7,346,ex+7,382);
+    } },
+];
+let GREET_ROT = 166;        // 日本語の挨拶の位置（DISCS定義のあとで確定する）
+
+/* ---- 異星の円盤に入っている絵 ---- */
+const PICS_A = [
+  { id:'acircle', name:'円', draw(g){ penSetup(g,9); P_(g).c(256,192,120); } },
+  { id:'astar', name:'ちいさな赤い星と3つの世界', draw(g){ const p=P_(g); penSetup(g,4);
+      g.fillStyle='#fff'; p.c(66,192,17,true);
+      const d=[120,196,290], r=[9,20,7];
+      for(let i=0;i<3;i++) p.c(66+d[i],192,r[i],true);
+      p.l(30,300,470,300); g.lineWidth=3;
+      for(let i=0;i<3;i++) p.l(66+d[i],300,66+d[i],292);
+      g.lineWidth=4; const t=66+d[1];
+      p.l(t,140,t,112); p.poly([t,152,t-9,134,t+9,134],true); } },
+  { id:'aform', name:'彼ら', draw(g){ const p=P_(g); penSetup(g,5);
+      // 放射相称の生きもの：中心の胴と8本の肢
+      p.c(256,180,52);
+      for(let i=0;i<8;i++){ const a=i*Math.PI/4 + Math.PI/8;
+        const x1=256+Math.cos(a)*52, y1=180+Math.sin(a)*52;
+        const x2=256+Math.cos(a)*116, y2=180+Math.sin(a)*116;
+        const x3=x2+Math.cos(a+0.5)*44, y3=y2+Math.sin(a+0.5)*44;
+        p.l(x1,y1,x2,y2,x3,y3); }
+      g.lineWidth=3; for(let i=0;i<3;i++) p.c(256-22+i*22,168,7);
+      p.t('8',256,352,26); } },
+  { id:'avoyager', name:'我々が送り出したもの', draw(g){ const p=P_(g); penSetup(g,4);
+      // 高利得アンテナ（放物面）
+      g.beginPath(); g.moveTo(140,150); g.quadraticCurveTo(256,262,372,150); g.stroke();
+      p.l(140,150,372,150);
+      // 給電部
+      p.l(256,150,256,84); g.lineWidth=3; p.c(256,78,11);
+      p.l(180,152,256,90); p.l(332,152,256,90); g.lineWidth=4;
+      // 本体（十角形の箱）
+      p.poly([214,196,298,196,310,232,202,232],false);
+      p.l(256,206,256,196);
+      // 原子力電池のブーム
+      p.l(202,222,96,286); g.lineWidth=3;
+      p.r(64,278,42,20,false); p.r(48,282,18,12,false); g.lineWidth=4;
+      // 観測機器のブーム
+      p.l(310,222,412,278); g.lineWidth=3; p.r(404,262,34,26,false); g.lineWidth=4;
+      // 磁力計の長いブーム
+      p.l(298,200,470,120); p.l(214,200,44,118);
+      // 下に伸びる棒
+      p.l(256,232,256,308); g.lineWidth=3; p.c(256,318,14);
+    } },
+  { id:'arecord', name:'金色の円盤', draw(g){ const p=P_(g); penSetup(g,4);
+      p.c(256,192,150); p.c(256,192,48); g.fillStyle='#fff'; p.c(256,192,9,true);
+      g.lineWidth=2; for(let r=62;r<148;r+=8) p.c(256,192,r);
+      g.lineWidth=4; p.l(160,96,352,288); p.r(340,276,34,26,false); } },
+  { id:'acredits', name:'彼らの最後のページ', draw(g){ const p=P_(g); penSetup(g,4);
+      // 中央に「ここに声がある」印＋彼らの数字で回転数
+      p.c(256,120,54);
+      g.lineWidth=3;
+      for(let i=1;i<=3;i++){ g.beginPath(); g.arc(256,120,54+i*18,-0.9,0.9); g.stroke(); }
+      // 「何回転目か」を示す印（ボイジャーの一覧表と同じ形）＋彼らの数字
+      g.lineWidth=4;
+      p.c(120,250,15);
+      g.beginPath(); g.arc(120,250,22,-2.6,-0.5); g.stroke();
+      p.poly([136,236,128,228,140,226],true);
+      g.fillStyle='#fff'; p.c(120,250,3,true);
+      const nw = alienNumWidth(ALIEN_ROT, 26, 9);
+      const nx0 = 300 - nw/2, nx1 = 300 + nw/2;
+      p.l(nx0-40,224,nx0-40,276); p.l(nx0-33,224,nx0-33,276);
+      drawAlienNumOnCanvas(g, ALIEN_ROT, 300, 250, 17, 26, 9);
+      p.l(nx1+33,224,nx1+33,276); p.l(nx1+40,224,nx1+40,276);
+      g.lineWidth=2; p.l(80,320,432,320);
+    } },
+];
+const ALIEN_ROT = 0o1234;     // 彼らの円盤：声は 668 回転目（8進で 1234）
+
+/* 異星人の数字：1桁 = 縦棒を n 本（0 は横棒1本）、8で桁上がり */
+function alienDigits(n){
+  const s = n.toString(8);
+  return s.split('').map(c=>+c);
+}
+function alienNumWidth(n, gap, bar){
+  bar = bar||7;
+  const ds = alienDigits(n);
+  return ds.reduce((a,d)=> a + (d===0?22:(d-1)*bar+4), 0) + gap*(ds.length-1);
+}
+function drawAlienNumOnCanvas(g, n, cx, cy, h, gap, bar){
+  const ds = alienDigits(n); bar = bar||7;
+  const wOf = d => d===0 ? 22 : (d-1)*bar+4;
+  let total = ds.reduce((a,d)=>a+wOf(d),0) + gap*(ds.length-1);
+  let x = cx - total/2;
+  for(const d of ds){
+    if(d===0){ g.beginPath(); g.moveTo(x,cy); g.lineTo(x+22,cy); g.stroke(); x+=22; }
+    else { for(let i=0;i<d;i++){ g.beginPath(); g.moveTo(x+i*bar,cy-h); g.lineTo(x+i*bar,cy+h); g.stroke(); } x+=(d-1)*bar+4; }
+    x += gap;
+  }
+}
+
+/* ======================================================================
+   走査 ― 絵を1本の信号に変える／信号から絵に戻す
+   ====================================================================== */
+const SR = 46046;               // 標本化周波数[Hz]（1本8.3396ms = 384標本）
+function bitmapOf(pic){
+  const c = pxCanvas(IMGW, IMGH), g = c.getContext('2d');
+  pic.draw(g);
+  const d = g.getImageData(0,0,IMGW,IMGH).data;
+  const a = new Uint8Array(IMGW*IMGH);
+  for(let i=0;i<a.length;i++) a[i] = d[i*4];
+  return a;
+}
+/* 縦走査：列ごとに上から下へ。各列の先頭標本は同期パルス(255) */
+function encodePics(pics, opt){
+  opt = opt||{};
+  const horiz = !!opt.horiz, inv = !!opt.invert;
+  const per = horiz ? IMGW : IMGH;
+  const nl  = horiz ? IMGH : IMGW;
+  const out = new Uint8Array(pics.length*per*nl);
+  let o=0;
+  for(const pic of pics){
+    const bm = bitmapOf(pic);
+    for(let li=0; li<nl; li++){
+      for(let s=0; s<per; s++){
+        let v = horiz ? bm[li*IMGW+s] : bm[s*IMGW+li];
+        if(inv) v = 255-v;
+        out[o++] = s===0 ? 255 : v;
+      }
+    }
+  }
+  return out;
+}
+/* プレイヤーの設定で信号を絵に戻す */
+function decodeToCanvas(cv, sig, start, p){
+  const len = Math.max(8, Math.round(p.lineLen));
+  const nl  = Math.max(4, Math.round(p.lines));
+  const w = p.horiz ? len : nl, h = p.horiz ? nl : len;
+  const cx = cv.getContext('2d');
+  const id = cx.createImageData(w,h);
+  for(let i=0;i<nl*len;i++){
+    let v = sig[start+i]; if(v===undefined) v=0;
+    if(p.invert) v = 255-v;
+    const li=Math.floor(i/len), pos=i%len;
+    const px = p.horiz ? pos : li, py = p.horiz ? li : pos;
+    const oo=(py*w+px)*4;
+    id.data[oo]=id.data[oo+1]=id.data[oo+2]=v; id.data[oo+3]=255;
+  }
+  const tmp = pxCanvas(w,h); tmp.getContext('2d').putImageData(id,0,0);
+  cx.imageSmoothingEnabled=false;
+  cx.fillStyle='#05070b'; cx.fillRect(0,0,cv.width,cv.height);
+  const sc = Math.min(cv.width/w, cv.height/h);
+  cx.drawImage(tmp,(cv.width-w*sc)/2,(cv.height-h*sc)/2,w*sc,h*sc);
+}
+
+/* ======================================================================
+   異星の円盤 ― ジャケットは明らかにボイジャーの真似。だが細部が違う
+   ====================================================================== */
+const YEAR_S = 3.15576e7;
+const ALIEN_DT = 40000 * YEAR_S;          // 彼らの地図はボイジャーの地図の4万年後
+/* 彼らの数値は、地球の秒では半端。だが彼らの底（8）では 8の冪＝いちばん綺麗な数になる */
+const ALIEN_ROT_S  = Math.pow(8,11)*F.H_T;   // 8^11 単位 ≒ 6.0475 秒／回転
+const ALIEN_SCAN_S = Math.pow(8,8)*F.H_T;    // 8^8  単位 ≒ 11.81 ミリ秒／走査線
+const ALIEN_LINES  = 384;                    // 8進で 600。1枚384本（横走査）
+/* 彼らの地図に載っている6つのパルサー（ボイジャーと同じ天体・周期だけが伸びている） */
+const ALIEN_PSR = [9,8,13,5,11,10].map((i,k)=>{
+  const p = PULSARS.find(x=>x.i===i);
+  return { i:p.i, id:p.id, P: p.P + p.pdot*ALIEN_DT,
+           deg: p.deg + [2.6,-5.4,3.8,-2.1,4.1,-3.2][k], sgn:p.sgn, d:p.d };
+});
+
+/* 彼らの数字：1桁 = 縦棒 n 本（0 は横棒）、8 で桁上がり */
+function alienNumSVG(n, x, y, opt){
+  opt=opt||{}; const k=opt.k||1, h=opt.h||13, bar=7*k, gap=opt.gap||20*k;
+  let out='', cx=x;
+  for(const d of alienDigits(n)){
+    if(d===0){ out += `<line x1="${cx}" y1="${y}" x2="${cx+16*k}" y2="${y}" stroke-width="${2.6*k}"/>`; cx+=16*k; }
+    else { for(let i=0;i<d;i++) out += `<line x1="${cx+i*bar}" y1="${y-h*k}" x2="${cx+i*bar}" y2="${y+h*k}" stroke-width="${2.4*k}"/>`;
+           cx += (d-1)*bar+3*k; }
+    cx += gap;
+  }
+  return `<g>${out}</g>`;
+}
+/* 円周に沿って彼らの数字を刻む */
+function alienRimNum(cx, cy, r, n, start, step){
+  let out='', ang=start;
+  const put=(a,len,perp)=>{
+    const rad=a*Math.PI/180, c=Math.cos(rad), s=Math.sin(rad);
+    if(perp) return `<line x1="${(cx+c*(r-len)).toFixed(1)}" y1="${(cy+s*(r-len)).toFixed(1)}" x2="${(cx+c*(r+len)).toFixed(1)}" y2="${(cy+s*(r+len)).toFixed(1)}" stroke-width="2.4"/>`;
+    const a1=(a-2.4)*Math.PI/180, a2=(a+2.4)*Math.PI/180;
+    return `<line x1="${(cx+Math.cos(a1)*r).toFixed(1)}" y1="${(cy+Math.sin(a1)*r).toFixed(1)}" x2="${(cx+Math.cos(a2)*r).toFixed(1)}" y2="${(cy+Math.sin(a2)*r).toFixed(1)}" stroke-width="2.4"/>`;
+  };
+  for(const d of alienDigits(n)){
+    if(d===0){ out += put(ang,0,false); ang += step*1.4; }
+    else { for(let i=0;i<d;i++){ out += put(ang,8,true); ang += step*0.42; } }
+    ang += step*1.5;
+  }
+  return `<g>${out}</g>`;
+}
+
+function alienCover(){ return svgTag(alienCoverInner(true)); }
+function alienCoverInner(withHot){
+  const E='#131a24';
+  let s = `<defs>
+    <radialGradient id="gA" cx="36%" cy="28%" r="84%">
+      <stop offset="0%" stop-color="#cfd8e2"/><stop offset="40%" stop-color="#96a3b2"/>
+      <stop offset="76%" stop-color="#5f6d7e"/><stop offset="100%" stop-color="#333d4b"/>
+    </radialGradient>
+    <linearGradient id="sheenA" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fff" stop-opacity=".26"/><stop offset="34%" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="66%" stop-color="#fff" stop-opacity=".12"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient></defs>`;
+  s += `<circle cx="500" cy="500" r="499" fill="url(#gA)"/>`;
+  s += ringTexture(60, 130, 490, .045);
+  s += `<circle cx="500" cy="500" r="499" fill="url(#sheenA)"/>`;
+  s += `<circle cx="500" cy="500" r="496" fill="none" stroke="#2b3542" stroke-width="5"/>`;
+  s += `<g stroke="${E}" fill="none" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round">`;
+
+  /* --- 上：数のかぞえ方（点の数 ＝ 彼らの数字） --- */
+  s += `<g>`;
+  for(let n=1;n<=9;n++){
+    const y = 92 + (n-1)*19;
+    for(let i=0;i<n;i++) s += `<circle cx="${356+i*13}" cy="${y}" r="3.6" fill="${E}" stroke="none"/>`;
+    s += `<line x1="${344+9*13+6}" y1="${y-7}" x2="${344+9*13+6}" y2="${y+7}" stroke-width="1.6" opacity=".45"/>`;
+    s += alienNumSVG(n, 494, y, {k:.62, h:9, gap:11});
+  }
+  s += `</g>`;
+
+  /* --- 左上：円盤と針＋外周に1回転の時間 --- */
+  s += `<g>
+    <circle cx="262" cy="352" r="86"/>
+    <circle cx="262" cy="352" r="27"/>
+    <circle cx="262" cy="352" r="5.5" fill="${E}" stroke="none"/>
+    <rect x="366" y="332" width="62" height="40" rx="5"/>
+    <path d="M366 352 l-12 0"/>
+    <path d="M354 352 l11 -7 l0 14 z" fill="${E}" stroke="none"/>
+  </g>`;
+  s += alienRimNum(262, 352, 106, Math.round(ALIEN_ROT_S/F.H_T), 232, 5.6);
+
+  /* --- 左下：パルサー地図（同じ空、ちがう場所から見た） --- */
+  s += alienPulsarSVG(258, 742, 1.0, E);
+
+  /* --- 右上：走査（線は横向き） --- */
+  s += `<g>
+    <rect x="596" y="292" width="200" height="150"/>`;
+  for(let i=1;i<=9;i++) s += `<line x1="598" y1="${292+i*7.5}" x2="794" y2="${292+i*7.5}" stroke-width="2.2"/>`;
+  s += `<path d="M600 368 l104 0" stroke-width="2.6"/>
+        <path d="M712 368 l-11 -7 l0 14 z" fill="${E}" stroke="none"/>
+        <path d="M840 300 l0 74" stroke-width="2.6"/>
+        <path d="M840 384 l-7 -12 l14 0 z" fill="${E}" stroke="none"/>
+      </g>`;
+  s += alienNumSVG(Math.round(ALIEN_SCAN_S/F.H_T), 566, 480, {k:.8, h:12, gap:15});
+  s += alienNumSVG(ALIEN_LINES, 566, 522, {k:.8, h:12, gap:15});
+
+  /* --- 右中：較正の図（黒地に白い円＝明暗が逆） --- */
+  s += `<g>
+    <rect x="622" y="566" width="180" height="136" fill="${E}"/>
+    <circle cx="712" cy="634" r="52" fill="#b9c4d1" stroke="none"/>
+  </g>`;
+
+  /* --- 右下：水素原子（我々とまったく同じ） --- */
+  s += hydrogenSVG(700, 812, E, .76);
+
+  s += `</g>`;
+
+  const hs = [
+    ['count',  330,  70, 250, 200, '点と棒がならんだ表'],
+    ['plan',   140, 226, 320, 250, '円盤と針の図（見おぼえがある）'],
+    ['pulsar',  86, 596, 350, 330, '放射状の線の図'],
+    ['scan',   566, 268, 320, 190, '横線が詰まった四角'],
+    ['scanNum',540, 452, 340,  96, 'ふた並びの棒'],
+    ['circle', 604, 548, 216, 172, '黒い四角の中の白い円'],
+    ['hydro',  566, 736, 280, 170, 'ふたつの丸が線で結ばれた図'],
+  ];
+  HOTBOX.alien = {}; hs.forEach(h=> HOTBOX.alien[h[0]] = [h[1],h[2],h[3],h[4]]);
+  if(withHot) s += hs.map(h=>`<rect class="hot" fill="transparent" stroke="transparent" data-hs="${h[0]}" data-cap="${h[5]}" x="${h[1]}" y="${h[2]}" width="${h[3]}" height="${h[4]}" rx="14"><title>${h[5]}</title></rect>`).join('');
+  return s;
+}
+
+function alienPulsarSVG(cx, cy, scale, E){
+  const R=170*scale;
+  let s=`<g>`;
+  s += `<circle cx="${cx}" cy="${cy}" r="${4.5*scale}" fill="${E}" stroke="none"/>`;
+  for(const p of ALIEN_PSR){
+    const a=(p.deg*p.sgn)*Math.PI/180, L=R*relLen(p.d);
+    const c=Math.cos(a), sn=Math.sin(a), nx=-sn, ny=c;
+    const x2=cx+c*L, y2=cy+sn*L;
+    s += `<line x1="${cx}" y1="${cy}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke-width="${2.4*scale}"/>`;
+    // 彼らの数字：桁ごとに棒をまとめて刻む
+    const ds = alienDigits(Math.round(p.P/F.H_T));
+    let d0 = 14*scale;
+    const room = (L-20*scale);
+    const unit = room / ds.reduce((a,d)=>a+(d===0?1.6:d*0.55+1.2),0);
+    for(const d of ds){
+      if(d===0){ s+=`<line x1="${(cx+c*d0).toFixed(1)}" y1="${(cy+sn*d0).toFixed(1)}" x2="${(cx+c*(d0+unit*0.9)).toFixed(1)}" y2="${(cy+sn*(d0+unit*0.9)).toFixed(1)}" stroke-width="${1.6*scale}"/>`; d0+=unit*1.6; }
+      else{ for(let i=0;i<d;i++){ const dd=d0+i*unit*0.55;
+              s+=`<line x1="${(cx+c*dd-nx*4*scale).toFixed(1)}" y1="${(cy+sn*dd-ny*4*scale).toFixed(1)}" x2="${(cx+c*dd+nx*4*scale).toFixed(1)}" y2="${(cy+sn*dd+ny*4*scale).toFixed(1)}" stroke-width="${1.5*scale}"/>`; }
+            d0 += d*unit*0.55 + unit*1.2; }
+    }
+  }
+  // 銀河中心へ伸びる長い線
+  s += `<line x1="${cx}" y1="${cy}" x2="${(cx+R*1.5).toFixed(1)}" y2="${(cy-R*0.06).toFixed(1)}" stroke-width="${3*scale}"/>`;
+  // 刻みが無く、先端に小さな丸だけが付いた線（＝パルサーではない何か）
+  const sa=-118*Math.PI/180, sl=R*0.78;
+  const sx2=cx+Math.cos(sa)*sl, sy2=cy+Math.sin(sa)*sl;
+  s += `<line x1="${cx}" y1="${cy}" x2="${sx2.toFixed(1)}" y2="${sy2.toFixed(1)}" stroke-width="${2.4*scale}"/>`;
+  s += `<circle cx="${sx2.toFixed(1)}" cy="${sy2.toFixed(1)}" r="${7*scale}"/>`;
+  s += `<circle cx="${sx2.toFixed(1)}" cy="${sy2.toFixed(1)}" r="${2.4*scale}" fill="${E}" stroke="none"/>`;
+  s += `</g>`;
+  return s;
+}
+
+/* ======================================================================
+   円盤のデータ（表面の音のならび）
+   ====================================================================== */
+const DISCS = {
+  voyager:{
+    name:'ボイジャーの円盤', rot:3.6, side:3229.4, sr:SR, horiz:false, invert:false,
+    scanMs:8.3396, lines:512, pics:PICS_V, greetRot:165,
+    bands:[
+      {t0:0,   t1:491, kind:'video', label:'規則正しい、耳ざわりな唸り'},
+      {t0:491, t1:731, kind:'greet', label:'人の声。ことばが次々に変わる'},
+      {t0:731, t1:1451,kind:'earth', label:'風。波。雷。動物の声'},
+      {t0:1451,t1:3229.4,kind:'music',label:'音楽'},
+    ],
+  },
+  alien:{
+    name:'異星の円盤', rot:ALIEN_ROT_S, side:4600, sr:IMGW/ALIEN_SCAN_S, horiz:true, invert:true,
+    scanMs:ALIEN_SCAN_S*1000, lines:384, pics:PICS_A, greetRot:ALIEN_ROT,
+    bands:[
+      {t0:0,   t1:1600, kind:'video', label:'規則正しい唸り。ボイジャーのそれによく似ている'},
+      {t0:1600,t1:3400, kind:'earth', label:'聞いたことのない音。歌のようでもある'},
+      {t0:3400,t1:4600, kind:'greet', label:'……人の、声？'},
+    ],
+  },
+};
+const GREETS = ['シュメール語','アッカド語','ヒッタイト語','古代ギリシャ語','ラテン語','アラビア語','アラム語','ヘブライ語',
+ 'ペルシャ語','アルメニア語','トルコ語','ヒンディー語','ベンガル語','ウルドゥー語','ネパール語','パンジャブ語','グジャラート語','マラーティー語',
+ 'シンハラ語','テルグ語','カンナダ語','オリヤー語','ラージャスターン語','日本語','朝鮮語','標準中国語','広東語','呉語','閩南語','ベトナム語','タイ語','ビルマ語','インドネシア語','イラ語','ニャンジャ語','ソト語','ズールー語','ガンダ語',
+ 'ケチュア語','ロシア語','ウクライナ語','ポーランド語','チェコ語','セルビア語','ルーマニア語','ハンガリー語',
+ 'イタリア語','フランス語','スペイン語','ポルトガル語','オランダ語','ドイツ語','スウェーデン語','ウェールズ語','英語'];
+
+/* 日本語の挨拶は、挨拶の帯が始まってから約1分48秒の位置にある（実物の音源より）。
+   491秒 + 108秒 = 599秒 ≒ 166回転目 */
+GREET_ROT = 166;
+DISCS.voyager.greetRot = GREET_ROT;
+function curDisc(){ return DISCS[S.disc]; }
+function bandAt(t){ const d=curDisc(); return d.bands.find(b=> t>=b.t0 && t<b.t1) || d.bands[d.bands.length-1]; }
+function fmtT(t){ const m=Math.floor(t/60), s=t-m*60; return m+':'+(s<10?'0':'')+s.toFixed(1); }
+
+/* 信号は最初に使うときだけ作る */
+const SIGCACHE = {};
+function signalOf(which){
+  if(!SIGCACHE[which]){
+    const d = DISCS[which];
+    SIGCACHE[which] = encodePics(d.pics, {horiz:d.horiz, invert:d.invert});
+  }
+  return SIGCACHE[which];
+}
+
+/* ======================================================================
+   資料棚
+   ====================================================================== */
+const BOOKS = [
+  {id:'b_h', icon:'⚛', title:'水素 ― 宇宙で最も多いもの', sub:'物理', body:`
+<p class="lead">中性水素の原子は、電子と陽子のスピンの向きがそろっているか逆かで、ほんのわずかにエネルギーが違う。
+その差を埋めるとき、水素は決まった振動を出す。</p>
+<p>振動数 <span class="mono">1 420 405 751.768 Hz</span>／波長 <span class="mono">21.106 cm</span>。
+1回の振動にかかる時間は <b class="mono">0.704 024 183 ナノ秒</b>（＝0.000 000 000 704 024 183 秒）。</p>
+<p>水素は宇宙のどこにでも、いちばん多くある。だから <b>この時間を「1」として数えれば、
+どんな星の住人とも同じ物差しを使える</b>。秒もメートルも、地球だけの都合でしかない。</p>
+<p class="dim">※ジャケットの説明で「0.70ナノ秒」と丸めた値を使うと、答えが 0.5% ほどずれる。</p>`},
+  {id:'b_p', icon:'▚', title:'パイオニアの銘板', sub:'記号', body:`
+<p class="lead">1972年、パイオニア10号に積まれた金属板。ボイジャーのジャケットは、この板の記号をそのまま受け継いでいる。</p>
+<p><b>数の書き方</b>：<span class="mono">｜</span> が 1、<span class="mono">—</span> が 0。
+左から右へ読み、<b>左端がいちばん大きい位</b>。桁が多いときは行を折り返し、上の行が上位。</p>
+<p><b>放射状の図（パルサー地図）</b>：中心は<b>太陽</b>で、地球ではない。14本の線がそれぞれ1個のパルサーを指す。</p>
+<ul style="margin:4px 0 8px;padding-left:1.2em">
+<li>線の<b>向き</b>＝その天体の方向</li>
+<li>線の<b>長さ</b>＝おおよその距離</li>
+<li>線に沿って刻まれた<b>数</b>＝そのパルサーが1回転する時間（もちろん水素の単位で）</li>
+<li>線の端の短い横棒＝銀河の面からの上下のずれ</li>
+</ul>
+<p><b>ただ1本だけ、数の付いていない長い線がある。それは銀河の中心を指している。</b></p>`},
+  {id:'b_x', icon:'↻', title:'回転をかぞえる印', sub:'記号', lock:'sawCredits', body:`
+<p class="lead">円を弧の矢印が取り巻く印。あれは <b>「盤が何回まわったか」</b> を表す記号だ。</p>
+<p>その隣に書かれた数は、<b>時間ではなく回転の数</b>。だから水素の単位を掛けてはいけない。
+掛けるのは <b>1回転にかかる時間</b> のほうだ。</p>
+<p class="dim">溝は1本の長い螺旋で、外から内へ向かって進む。
+「何回転目か」が分かれば、針をどこに置けばよいかが決まる。</p>`},
+  {id:'b_v', icon:'📺', title:'映像信号のあらまし', sub:'工学', body:`
+<p class="lead">絵を1本の信号に変えるには、絵を細い線に切り分けて、端から順に明るさを並べればよい。</p>
+<p>受け取った側は、<b>①1本の線の長さ ②1枚あたりの本数 ③線の向き（縦か横か） ④明るいほうがどちらか</b>
+の4つが分かれば、元の絵に戻せる。ひとつでも違うと、絵は斜めにずれるか、90度倒れるか、白黒が裏返る。</p>
+<p>各線の先頭には短い<b>同期の合図</b>が入っている。長さが合っていれば、この合図は
+画面のふちに<b>まっすぐ1列に並ぶ</b>。長さが違うと斜めの点線になって流れていくので、
+まっすぐになるまで少しずつ動かせばよい。</p>
+<p>色をつけたいときは、<b>同じ絵を3回続けて送り、赤・緑・青として重ねる</b>という手もある。
+<span class="dim">（もっとも、いま手もとにある盤に入っているのは白黒の絵だけだ。）</span></p>`},
+  {id:'b_r', icon:'🚀', title:'ボイジャー計画のあらまし', sub:'記録', body:`
+<p class="lead">1977年、2機の探査機が打ち上げられた。<b>2号が8月20日、1号が9月5日</b>。番号の若いほうが後だった。</p>
+<p>どちらにも、直径30センチの銅の円盤に金メッキをした記録が積まれた。
+回す速さは <b>毎分16と3分の2回転</b>（ふつうのレコードの半分）。片面はおよそ1時間。</p>
+<p>収められたのは、115枚の絵、<b>55の言語の挨拶</b>、地球の音、90分の音楽。
+挨拶の並び順に規則はなく、長さも2秒から十数秒までまちまちだ。
+<b>だから、どの言語がどこにあるかは、盤のどこかに記されていなければ分からない。</b></p>
+<p><b>針とカートリッジは一緒に積まれている。だが、回す装置は積まれていない。</b>
+拾った者は、自分で回し方を考えなければならない。</p>
+<p class="dim">40 000年後、ボイジャー1号は <b>グリーゼ445</b>（きりん座の赤い小さな星）から1.6光年のところを通る。
+2号は <b>ロス248</b> から1.7光年のところを通る。それが、この2機がいちばん星に近づく瞬間になる。</p>`},
+  {id:'b_s', icon:'✷', title:'パルサー ― 宇宙の灯台', sub:'天文', lock:'alien', body:`
+<p class="lead">パルサーは正確な周期で光を送ってくる。だがその周期は、回転のエネルギーを失って
+<b>少しずつ、しかし一定の割合で伸びていく</b>。</p>
+<p>つまり <b>パルサーの周期は時計であり、同時にカレンダーでもある</b>。
+どこかに記された周期と、いま測った周期を比べ、伸びる速さで割れば、
+<b>その数字が測られたのが何年前かが分かる</b>。</p>
+<table class="tbl"><tr><th>パルサー</th><th>1秒あたり周期が伸びる量</th></tr>
+<tr><td>かに星雲のもの</td><td class="mono">4.228 × 10⁻¹³</td></tr>
+<tr><td>ほ座のもの</td><td class="mono">1.250 × 10⁻¹³</td></tr>
+<tr><td>いちばん遅いもの</td><td class="mono">4.005 × 10⁻¹⁴</td></tr>
+<tr><td>B1727-47</td><td class="mono">1.636 × 10⁻¹³</td></tr>
+<tr><td>その他</td><td class="mono">10⁻¹⁵ 〜 10⁻¹⁶</td></tr></table>
+<p class="dim">ただし <b>伸びる速さそのものも、ゆっくり鈍っていく</b>。
+数十年・数百年なら一定とみなしてよいが、何万年もの隔たりを一定の割合で外挿できるのは、
+かに星雲のような若い天体ではなく、<b>すでに十分に年老いた、伸びの遅い天体</b>だけだ。</p>
+<p class="dim">ボイジャーの地図に刻まれた14個の周期からこの計算をした人がいる。
+出てきた答えは <b>西暦1969.7年 ± 1.2年</b>。打ち上げの1977年ではなく、
+<b>周期が測られた年</b>が出てくるのが面白いところだ。</p>`},
+];
+
+/* ======================================================================
+   観察 ― 円盤のどこをクリックすると何が分かるか
+   ====================================================================== */
+const OBS = {
+  /* --- ボイジャー：表 --- */
+  plan:{ t:'レコードを上から見た図', disc:'voyager', z:['voyager','plan'], body:`
+<p>円盤と、その縁に置かれた小さな箱。箱からは細い針が出て、円盤のいちばん外側に触れている。
+<b>ここから始めよ</b>ということらしい。箱の上には、取っ手のような線。</p>
+<p>そして円盤の外周に沿って、細かい刻みが並んでいる。<b>縦の棒と、横の棒。</b>
+数えてみると、全部で <b>33個</b>。</p>`,
+    marks:{bits:F.ROT_BIN, cap:'外周の刻み（33個）'},
+    note:{id:'n_rot', t:'外周の刻み', v:F.ROT_BIN} },
+  elev:{ t:'レコードを真横から見た図', disc:'voyager', z:['voyager','elev'], body:`
+<p>薄い板を横から見たところ。針の付いた箱は<b>外側の端</b>にある。
+矢印はないが、外から内へ向かうことを示しているように見える。</p>
+<p>この図のすぐ下に、また刻みの列がある。</p>` },
+  sideNum:{ t:'五段に折り返された刻み', disc:'voyager', z:['voyager','sideNum'], body:`
+<p>刻みが5行にわたって並んでいる。上の行から左へ右へ読むのだろう。全部で <b>43個</b>。
+最初の9個のあとは、ほとんどが横棒（0）だ。</p>`,
+    marks:{bits:F.SIDE_BIN, cap:'側面図に添えられた刻み（43個・5行）'},
+    note:{id:'n_side', t:'側面図の刻み', v:F.SIDE_BIN} },
+  wave:{ t:'うねうねした線の図', disc:'voyager', z:['voyager','wave'], body:`
+<p>左端に、細かく震える短い束。そのあとに、山が3つ。
+それぞれの山の前には、下向きの短いくぼみがある。</p>
+<p>山の上には小さな刻みが添えてある。<span class="mono">｜</span>、<span class="mono">｜—</span>、<span class="mono">｜｜</span>
+――つまり <b>1、2、3</b>。「これが1本目、2本目、3本目だ」と言っている。</p>
+<p class="dim">円盤に刻まれているのは、音だけではないのかもしれない。</p>`,
+    unlock:'videoHint' },
+  scanNum:{ t:'三段に折り返された刻み', disc:'voyager', z:['voyager','scanNum'], body:`
+<p>波形の図のすぐ下。<b>24個</b>の刻みが3行に。1本の山にかかる時間だろうか。</p>`,
+    marks:{bits:F.SCAN_BIN, cap:'波形に添えられた刻み（24個・3行）'},
+    note:{id:'n_scan', t:'波形の下の刻み', v:F.SCAN_BIN} },
+  saw:{ t:'のこぎりの歯のような線', disc:'voyager', z:['voyager','saw'], body:`
+<p>斜めに上がっては垂直に落ちる、を3回くり返す線。上には <span class="mono">｜</span>、
+<span class="mono">｜—</span>、<span class="mono">｜｜</span>。
+<b>1本の線を引き終えたら、すぐ次の線の頭に戻る</b> ―― そう言っているように見える。</p>` },
+  frame:{ t:'四角い枠とたくさんの縦線', disc:'voyager', z:['voyager','frame'], body:`
+<p>横長の四角。その左端から、細い<b>縦の線</b>が何本も詰まっている。
+下向きの矢印が1本の線をなぞり、右向きの矢印が線の進む向きを示す。</p>
+<p><b>絵は、縦の線を左から右へ並べて作られている。</b>ふつうの映像とは向きが違う。</p>
+<p>枠は横長で、<b>横の長さは縦のおよそ 4/3</b>。枠の左上には短い刻みが5つ。
+そして<b>枠の右わきに、縦に10個の刻み</b>が並んでいる。</p>`,
+    marks:{bits:F.LINE_BIN, cap:'枠の右の刻み（10個・縦書き）'},
+    marks2:{bits:F.GRAY_BIN, cap:'枠の左上の刻み（5個）'},
+    note:{id:'n_lines', t:'枠の右の刻み', v:F.LINE_BIN} },
+  circle:{ t:'なにも描かれていない、ただの円', disc:'voyager', z:['voyager','circle'], body:`
+<p>説明も数字もない。ただ、きれいな円が一つ。</p>
+<p class="lead">これは <b>答え合わせ</b> だ。
+「正しく解けたなら、最初にこの形が出てくるはずだ」――そう言っている。
+もし縦横の比を間違えていれば、円は楕円になってすぐ分かる。</p>` },
+  hydro:{ t:'ふたつの丸が線で結ばれた図', disc:'voyager', z:['voyager','hydro'], body:`
+<p>大きな丸の中に、中心の点と、周りをまわる小さな点。それが2つ並んでいる。
+点にはそれぞれ短い矢印が添えられ、<b>左の図では2本の矢印が逆向き、右の図では同じ向き</b>。</p>
+<p>2つの図は1本の線で結ばれ、その線の真ん中から <b>縦の棒が1本</b> 垂れている。</p>
+<p class="lead">丸の中の点が1個 ―― いちばん簡単な原子。<b>水素だ。</b>
+そして垂れた棒は「1」。<b>この状態から状態へ移るのにかかる時間を、1と数えよ</b>という宣言。</p>`,
+    unlock:'unitHint', note:{id:'n_unit', t:'すべての数の単位', v:'水素の遷移 = 1 = 0.704024183 ナノ秒'} },
+  pulsar:{ t:'放射状にのびる線の図', disc:'voyager', z:['voyager','pulsar'], body:`
+<p>1点から <b>15本</b> の線が四方に伸びている。うち14本には、線に沿って細かい刻みがびっしりと。
+残る1本 ―― 右へまっすぐ伸びる長い線 ―― には、刻みが一つもない。</p>
+<p>線の端には、ごく短い横棒が付いているものがある。</p>`,
+    unlock:'pulsarHint', psrList:'voyager', note:{id:'n_map', t:'放射状の図', v:'15本。うち1本だけ数が無い'} },
+  uran:{ t:'細い線が放射する小さな円', disc:'voyager', z:['voyager','uran'], body:`
+<p>直径2センチほどの円。表面の質感が周りと違う。金ではない、別の金属が薄く貼られている。</p>
+<p class="dim">分析にかけた。<b>ウラン238</b>。半減期45億年。
+このジャケットが作られてから今までに、どれだけが崩れたかを測れば、
+<b>そのまま経過した時間が出る</b>。もうひとつの時計だ。</p>`,
+    note:{id:'n_ur', t:'ウラン238のしみ', v:'半減期 45億年のもうひとつの時計'} },
+  /* --- ボイジャー：裏 --- */
+  grooveA:{ t:'いちばん外側の帯', disc:'voyager', body:`
+<p>溝が最も細かく、規則的に並んでいる。指でなぞると、音楽の溝とは明らかに手ざわりが違う。
+<b>再生すれば最初に来るのはこの帯だ。</b></p>` },
+  grooveB:{ t:'まん中の帯', disc:'voyager', body:`<p>溝の間隔がやや広い。うねりに、ゆらぎがある。</p>` },
+  grooveC:{ t:'いちばん内側の帯', disc:'voyager', body:`<p>いちばん長く続く帯。うねりは複雑で、繰り返しがある。</p>` },
+  label:{ t:'中央のラベル', disc:'voyager', body:`
+<p><b>THE SOUNDS OF EARTH / UNITED STATES OF AMERICA / PLANET EARTH / 16 2/3 RPM</b></p>
+<p>ラベルと溝のあいだの、何も刻まれていないはずの輪に、手で彫った小さな文字があった。</p>
+<p class="lead" style="text-align:center">To the makers of music — all worlds, all times</p>
+<p class="dim">音楽をつくるすべての者へ ―― すべての世界、すべての時代の。</p>`,
+    note:{id:'n_etch', t:'盤に手彫りされた言葉', v:'To the makers of music — all worlds, all times'} },
+
+  /* --- 異星の円盤 --- */
+  count:{ t:'点と棒がならんだ表', disc:'alien', z:['alien','count'], body:`
+<p>左に点が並び、右にその数を表す記号が刻まれている。点は1個から順に増えていく。</p>
+<p>記号のほうは、はじめのうち棒が1本ずつ増えていく。ところが ――
+<b>ある数のところで棒が急に1本に戻り、右に横棒が付け足される</b>。
+そこから先はまた1本ずつ増えていく。</p>
+<p class="lead">桁が上がる場所を見れば、彼らが<b>いくつで繰り上がる数の書き方</b>をしているかが分かる。</p>`,
+    fig:'countTable', unlock:'baseHint' },
+  aplan:{ t:'円盤と針の図', disc:'alien', z:['alien','plan'], body:`
+<p>見おぼえがある。<b>ボイジャーのジャケットとまったく同じ構図だ。</b>
+円盤、外周に置かれた針、そして外周に沿って並ぶ刻み。</p>
+<p>ただし刻みは <b>かたまり</b> で並んでいる。かたまりとかたまりのあいだには、はっきりした隙間。
+最初のかたまりは棒が1本きり。そのあとは<b>横棒がずらりと続く</b>だけだ。</p>`,
+    marksA:{n:()=>Math.round(ALIEN_ROT_S/F.H_T), cap:'外周の刻み（かたまりごとに数える）'},
+    note:{id:'na_rot', t:'異星の円盤・外周の刻み', v:()=>alienDigits(Math.round(ALIEN_ROT_S/F.H_T)).join(' ')+'（かたまりの棒の数）'} },
+  scan:{ t:'横線が詰まった四角', disc:'alien', z:['alien','scan'], body:`
+<p>ボイジャーの図とそっくりだが、<b>詰まっている線が横向き</b>だ。
+矢印も、右へ1本なぞってから下へ進むように描かれている。</p>
+<p class="lead">彼らは絵を <b>横の線</b> で切っている。我々は縦だった。</p>` },
+  scanNumA:{ t:'ふた並びの棒', disc:'alien', z:['alien','scanNum'], body:`
+<p>走査の図の下に、かたまりの列が2つ。上が<b>線1本にかかる時間</b>、
+下が<b>1枚あたりの線の本数</b>だろう。</p>`,
+    marksA2:[{n:()=>Math.round(ALIEN_SCAN_S/F.H_T), cap:'上の列＝1本にかかる時間'},
+             {n:()=>ALIEN_LINES, cap:'下の列＝1枚あたりの本数'}] },
+  acircle:{ t:'黒い四角の中の白い円', disc:'alien', z:['alien','circle'], body:`
+<p>ボイジャーのジャケットにも、答え合わせの円があった。<b>彼らも同じ場所に円を置いている。</b></p>
+<p>ちがうのは色だ。<b>こちらは黒地に白い円。</b>
+彼らの世界では、明るいものと暗いものの表しかたが逆なのかもしれない。</p>` },
+  ahydro:{ t:'ふたつの丸が線で結ばれた図', disc:'alien', z:['alien','hydro'], body:`
+<p class="lead">まったく同じだ。丸が2つ、中の点、逆向きの矢印、結ぶ線、そして垂れた1本の棒。</p>
+<p>彼らも<b>水素を物差しにしている</b>。
+――いや。<b>彼らは我々の物差しを読んで、それに合わせてきた</b>のかもしれない。</p>` },
+  apulsar:{ t:'放射状の線の図', disc:'alien', z:['alien','pulsar'], body:`
+<p>これも同じ形の図。ただし刻みの付いた線は <b>6本</b> しかない。刻みはやはり、かたまりで並んでいる。</p>
+<p>数を読んでみると ―― <b>ボイジャーの地図にある周期と、どれも少しずつ違う。
+そして必ず、こちらのほうが長い。</b></p>
+<p>そして、刻みの無い線が<b>2本</b>ある。1本は長く伸びる線――銀河の中心だろう。
+もう1本の先には、<b>小さな丸</b>が描かれている。</p>
+<p class="lead">この図の中心は、太陽ではない。
+――中心は<b>彼らの居場所</b>で、丸の付いた線の先にあるのが、<b>我々</b>だ。</p>`,
+    unlock:'aPulsarHint', psrList:'alien' },
+};
+
+/* ======================================================================
+   謎
+   ====================================================================== */
+const QUESTS = [
+ {id:'q1', note:{t:'1回転にかかる時間', v:'3.6秒（毎分16と2/3回転）'}, part:1, q:'この円盤は、1回転するのに何秒かかる？', unit:'秒',
+  ans:['3.6','3.59','3.6秒','3.60','3.5999','3.6びょう','16 2/3','16.67','16.666'], num:[3.55,3.65],
+  hints:['ジャケットの左上、レコードの外周に33個の刻みが並んでいる。あれが答えだ。',
+         '｜が1、—が0。33桁の2進数として読み、計算機に入れてみよう。',
+         '出た数に「1」の長さ＝0.704024183ナノ秒を掛ける。5,113,380,864 × 0.704024183ns ＝ ?'],
+  done:'これで回す速さが決まった。ターンテーブルに入れてみよう。'},
+ {id:'q2', note:{t:'片面の再生時間', v:'3,229秒 = 53.8分'}, part:1, q:'片面を最後まで再生すると、何分かかる？', unit:'分',
+  ans:['53.8','53.82','53','54','53.8分','約54分','53分50秒'], num:[53,54.2],
+  hints:['側面図の下、5行に折り返された43個の刻み。',
+         '同じように読んで、0.704024183ナノ秒を掛ける。答えは秒で出るから、60で割る。',
+         'ジャケットは「約1時間」と言っているが、実際はそれより短い。53〜54分のあいだ。'],
+  done:'「約1時間」は、ずいぶん大まかな見積もりだった。'},
+ {id:'q3', note:{t:'絵の作り', v:'縦の線 512本 / 1本 8.34ミリ秒 / 縦横比 4:3 / 明るさ16段階'}, part:1, q:'1枚の絵は、何本の線でできている？', unit:'本',
+  ans:['512','512本'], num:[512,512],
+  hints:['ジャケットの右側は、まるごと「絵の作り方」の説明だ。',
+         '四角い枠の右わきに、縦に10個の刻みが並んでいる。それを読もう。',
+         '10桁の2進数 1000000000。これは時間ではないので、0.704ナノ秒は掛けない。'],
+  done:''},
+ {id:'q4', part:1, q:'正しく解読できたとき、最初に現れる図形は？',
+  ans:['円','まる','えん','circle','丸','白い丸','白い円','しろいまる'],
+  hints:['ジャケットの右のほうに、説明も数字もない図形が1つだけある。',
+         'それは「絵」ではなく「答え合わせ」だ。',
+         '縦横の比を間違えると、それは楕円になる。'],
+  done:''},
+ {id:'q5', note:{t:'地図の数が測られた年', v:'西暦1970年ごろ'}, part:1, q:'この地図に刻まれた数が測られたのは、西暦何年ごろ？', unit:'年',
+  ans:['1970','1969','1971','1972','1970年','1969.7'], num:[1968,1973],
+  hints:['パルサーの周期は、少しずつ伸びていく。',
+         '地図の周期を星図端末に入れてみよう。今の周期と比べてくれる。',
+         '打ち上げは1977年。だが地図に刻まれたのは、それより前に測られた値だ。'],
+  done:'打ち上げの年ではなく、「測った年」が出てくる。'},
+ {id:'q6', note:{t:'日本語の挨拶のありか', v:()=>GREET_ROT+'回転目 ＝ '+(GREET_ROT*DISCS.voyager.rot).toFixed(1)+'秒'}, part:1, big:true, needFlag:'greetHeard', q:'【大謎】この円盤に刻まれた、たった一つの日本語。その最初のひとことは？',
+  ans:['こんにちは','コンニチハ','今日は','こんにちわ'],
+  hints:['絵を最後まで復元しよう。最後の1枚は、絵ではなく一覧表だ。',
+         '一覧表では、日本語の行にだけ ＊ 印が付いている。その ＊ は表のいちばん下にもう一度現れ、そこに「回転の印」と数が並んでいる。',
+         '回転数 × 1回転の秒数 ＝ その音のある位置。ターンテーブルをそこへ合わせよう。'],
+  done:''},
+ /* --- 第二部 --- */
+ {id:'e1', note:{t:'彼らの数の書き方', v:'8で繰り上がる（8進法）'}, part:2, q:'彼らの数の書き方は、いくつで繰り上がる？', unit:'進法',
+  ans:['8','8進法','はち','8しんほう','八'], num:[8,8],
+  hints:['ジャケットの上に、点の数と記号を並べた表がある。',
+         '棒が1本ずつ増えていき、ある数のところで桁が変わる。',
+         '点が8個のところを見よ。'],
+  done:'彼らの指は8本なのかもしれない。'},
+ {id:'e2', note:{t:'彼らの円盤の1回転', v:()=>ALIEN_ROT_S.toFixed(2)+'秒（8を11回かけた数）'}, part:2, q:'彼らの円盤は、1回転するのに何秒かかる？（小数第2位まで）', unit:'秒',
+  ans:['6.05','6.0475','6.05秒','6.048'], num:[6.02,6.08],
+  hints:['外周の刻みを、かたまりごとに棒の数を数えて読む。ほとんどが「棒なし」だ。',
+         'それを8進数として計算機に入れる。計算機の「底」を8に。',
+         '出た数に0.704024183ナノ秒を掛ける。物差しは我々と同じだ。'],
+  done:'地球の秒では半端な数だ。だが彼らの数え方では、8を11回かけたちょうどの数になる。'},
+ {id:'e3', note:{t:'彼らの絵の作り', v:()=>'横の線 '+ALIEN_LINES+'本 / 1本 '+(ALIEN_SCAN_S*1000).toFixed(2)+'ミリ秒 / 明暗は逆'}, part:2, q:'彼らの絵を復元したとき、最初に現れた図形は？',
+  ans:['円','まる','えん','circle','丸','白い丸','白い円','しろいまる'],
+  hints:['線は横向き。1本の長さと本数は、走査の図の下に刻まれている。',
+         '較正の図は黒地に白い円だった。明暗をひっくり返す必要がある。',
+         '彼らは我々のやり方を真似ている。だから最初に出るものも同じだ。'],
+  done:'彼らは、答え合わせの作法まで真似ている。'},
+ {id:'e4', part:2, q:'彼らの絵の中に描かれていた、我々が送り出したものは？',
+  ans:['ボイジャー','ぼいじゃー','voyager','探査機','ボイジャー1号','たんさき','ボイジャー探査機'],
+  hints:['絵を順に送っていこう。3枚目から先が本題だ。',
+         '大きな皿と、長い棒と、箱。',
+         '彼らは、それを見たのだ。'],
+  done:''},
+ {id:'e5', note:{t:'彼らの円盤が作られた時', v:'いまから約4万年後'}, part:2, q:'彼らの円盤が作られたのは、今からおよそ何年後？', unit:'年後',
+  ans:['40000','4万','40000年後','4万年','四万'], num:[35000,45000],
+  hints:['パルサーの周期は伸びる。彼らの地図の値は、どれも我々の値より長かった。',
+         '星図端末に、彼らの地図の周期を入れてみよう。',
+         '答えは「過去」ではない。'],
+  done:'この手紙は、未来から来た。'},
+ {id:'e6', note:{t:'彼らのいる場所', v:'グリーゼ445（きりん座・17.6光年）'}, part:2, q:'彼らはどこから送ってきた？',
+  ans:['グリーゼ445','ぐりーぜ445','gliese445','gliese 445','グリーゼ445番星','ac+79 3888'],
+  hints:['彼らの地図は、我々の地図と同じ空を描いている。だが線の角度がわずかに違う。',
+         '違う場所から見ているからだ。星図端末が三角測量してくれる。',
+         '資料棚の『ボイジャー計画のあらまし』の最後の段落を読み返そう。'],
+  done:''},
+ {id:'e7', part:2, big:true, needFlag:'aVoiceHeard', q:'【最終謎】彼らの円盤の最後の溝に入っていたことば。前半は「こんにちは」。では後半は？',
+  ans:['おげんきですか','お元気ですか','御元気ですか','元気ですか','げんきですか','こんにちはお元気ですか','こんにちは。お元気ですか。'],
+  hints:['彼らの最後の1枚には、彼らの数字が大きく1つだけ刻まれている。',
+         'それは「何回転目か」。第一部とまったく同じ仕掛けだ。',
+         '回転数 × 彼らの1回転の秒数。その位置を、彼らの円盤で再生する。'],
+  done:''},
+];
+const Q = id => QUESTS.find(x=>x.id===id);
+
+/* ======================================================================
+   音 ― すべてその場で合成する
+   ====================================================================== */
+const AU = { ctx:null, on:false, nodes:[], kind:null };
+function auCtx(){ if(!AU.ctx){ try{ AU.ctx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+  if(AU.ctx && AU.ctx.state==='suspended') AU.ctx.resume(); return AU.ctx; }
+function noiseBuf(ctx, sec, color){
+  const n = Math.floor(ctx.sampleRate*sec), b = ctx.createBuffer(1,n,ctx.sampleRate), d = b.getChannelData(0);
+  let last=0;
+  for(let i=0;i<n;i++){ const w=Math.random()*2-1; last = color? (last*0.96+w*0.04) : w; d[i]= color? last*3 : w; }
+  return b;
+}
+function auStop(){
+  AU.gen = (AU.gen||0)+1;               // 走っているシーケンスを無効にする
+  clearTimeout(AU.seqT); AU.seqT=null;
+  AU.on=false; AU.kind=null;
+  for(const n of AU.nodes){ try{ n.stop? n.stop() : n.disconnect(); }catch(e){} }
+  AU.nodes=[];
+}
+function auPlay(kind, speed){
+  const ctx = auCtx(); if(!ctx) return;
+  auStop(); AU.on=true; AU.kind=kind;
+  speed = speed||1;
+  const out = ctx.createGain(); out.gain.value=0.0001; out.connect(ctx.destination);
+  out.gain.linearRampToValueAtTime(0.5, ctx.currentTime+0.25);
+  AU.nodes.push(out);
+  // レコード面のノイズ（常時）
+  const hiss = ctx.createBufferSource(); hiss.buffer=noiseBuf(ctx,2,true); hiss.loop=true;
+  const hg = ctx.createGain(); hg.gain.value=0.05;
+  hiss.connect(hg).connect(out); hiss.start(); AU.nodes.push(hiss);
+
+  if(kind==='video'){
+    // 走査のパルス列＝耳ざわりな唸り
+    const o1=ctx.createOscillator(); o1.type='sawtooth'; o1.frequency.value=120*speed;
+    const o2=ctx.createOscillator(); o2.type='square';   o2.frequency.value=1920*speed;
+    const g1=ctx.createGain(); g1.gain.value=.16; const g2=ctx.createGain(); g2.gain.value=.05;
+    const lfo=ctx.createOscillator(); lfo.type='sine'; lfo.frequency.value=3.1;
+    const lg=ctx.createGain(); lg.gain.value=.04; lfo.connect(lg).connect(g2.gain);
+    o1.connect(g1).connect(out); o2.connect(g2).connect(out);
+    o1.start(); o2.start(); lfo.start(); AU.nodes.push(o1,o2,lfo);
+  }else if(kind==='earth'){
+    const n=ctx.createBufferSource(); n.buffer=noiseBuf(ctx,3,true); n.loop=true;
+    const f=ctx.createBiquadFilter(); f.type='bandpass'; f.frequency.value=420; f.Q.value=1.4;
+    const lfo=ctx.createOscillator(); lfo.frequency.value=.13;
+    const lg=ctx.createGain(); lg.gain.value=260; lfo.connect(lg).connect(f.frequency);
+    const g=ctx.createGain(); g.gain.value=.5;
+    n.connect(f).connect(g).connect(out); n.start(); lfo.start(); AU.nodes.push(n,lfo);
+  }else if(kind==='music'){
+    const sc=[0,2,4,7,9,12,14,16], base=196*speed;
+    const o=ctx.createOscillator(); o.type='triangle';
+    const g=ctx.createGain(); g.gain.value=.001;
+    o.connect(g).connect(out); o.start(); AU.nodes.push(o);
+    let i=0; const gen=AU.gen||0;
+    const seq=()=>{ if(!AU.on||AU.kind!=='music'||(AU.gen||0)!==gen) return;
+      const t=ctx.currentTime, n=sc[(i*3+ (i>>3))%sc.length];
+      o.frequency.setValueAtTime(base*Math.pow(2,n/12), t);
+      g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(.16,t);
+      g.gain.exponentialRampToValueAtTime(.001,t+.42); i++;
+      AU.seqT = setTimeout(seq, 300); };
+    seq();
+  }else if(kind==='greet'){
+    // 母音のような音のつらなり（言語が変わるたびに音色が変わる）
+    const o=ctx.createOscillator(); o.type='sawtooth'; o.frequency.value=128;
+    const f1=ctx.createBiquadFilter(); f1.type='bandpass'; f1.Q.value=7;
+    const g=ctx.createGain(); g.gain.value=.001;
+    o.connect(f1).connect(g).connect(out); o.start(); AU.nodes.push(o);
+    let i=0; const gen=AU.gen||0;
+    const seq=()=>{ if(!AU.on||AU.kind!=='greet'||(AU.gen||0)!==gen) return;
+      const t=ctx.currentTime;
+      f1.frequency.setValueAtTime([620,980,1480,760,540][i%5], t);
+      o.frequency.setValueAtTime(112+ (i%4)*17, t);
+      g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(.001,t);
+      g.gain.linearRampToValueAtTime(.2,t+.06); g.gain.linearRampToValueAtTime(.001,t+.34);
+      i++; AU.seqT=setTimeout(seq, 380); };
+    seq();
+  }
+}
+function speak(text){
+  try{
+    if(!window.speechSynthesis) return false;
+    const ja = speechSynthesis.getVoices().find(v=>/^ja/i.test(v.lang));
+    if(!ja) return false;                 // 日本語の声がない環境では鳴らさない
+    const u = new SpeechSynthesisUtterance(text);
+    u.voice=ja; u.lang='ja-JP'; u.rate=.92; u.pitch=1.05;
+    speechSynthesis.cancel(); speechSynthesis.speak(u); return true;
+  }catch(e){ return false; }
+}
+try{ speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged=()=>{}; }catch(e){}
+
+/* ======================================================================
+   進行
+   ====================================================================== */
+function noteAdd(id, t, v){
+  if(S.notes.some(n=>n.id===id)) return;
+  S.notes.push({id, t: typeof t==='function'? t() : t, v: typeof v==='function'? v() : v});
+  save(); renderNotes(); toast('記録に追加：'+t);
+}
+function flag(k){ if(S.flags[k]) return false; S.flags[k]=true; save(); return true; }
+
+function solveQuest(id, silent){
+  if(S.solved[id]) return;
+  S.solved[id]=true; save();
+  const q=Q(id);
+  if(q.note) noteAdd('qn_'+id, q.note.t, q.note.v);
+  renderQuests(); renderProgress();
+  if(!silent) toast('正解：'+q.q.replace(/【.*?】/,''), 'ok');
+  if(q.done) setTimeout(()=>toast(q.done), 900);
+  if(id==='q6') setTimeout(part1Clear, 1200);
+  if(id==='e7') setTimeout(ending, 1200);
+  checkUnlocks();
+}
+function checkUnlocks(){
+  renderShelf(); renderDevices();
+  try{ renderStory(); }catch(e){}
+}
+
+/* ======================================================================
+   画面の組み立て
+   ====================================================================== */
+function renderProgress(){
+  const p1 = QUESTS.filter(q=>q.part===1), p2 = QUESTS.filter(q=>q.part===2);
+  const d1 = p1.filter(q=>S.solved[q.id]).length, d2 = p2.filter(q=>S.solved[q.id]).length;
+  $('#btnAfter').style.display = S.flags.cleared ? '' : 'none';
+  $('#progress').innerHTML = S.flags.alien
+    ? `第一部 <b>${d1}/${p1.length}</b> ・ 第二部 <b>${d2}/${p2.length}</b>`
+    : `解けた謎 <b>${d1}/${p1.length}</b>`;
+}
+function renderShelf(){
+  const w = $('#shelf'); w.innerHTML='';
+  for(const b of BOOKS){
+    const locked = b.lock && !S.flags[b.lock];
+    const btn = el('button','thing'+(locked?'':''),
+      `<span class="ic" style="font-size:17px">${b.icon}</span>
+       <span class="tx"><b>${locked?'？？？':b.title}</b><i>${locked?'まだ手もとにない':b.sub}</i></span>`);
+    if(locked) btn.disabled=true; else btn.onclick=()=>openModal(b.title, b.body);
+    w.appendChild(btn);
+  }
+}
+const DEVICES = [
+  {id:'turn', icon:'💿', name:'ターンテーブル', sub:'円盤を回して聴く', open:devTurntable},
+  {id:'scope',icon:'∿',  name:'波形モニタ',   sub:'信号の形を見る',   open:devScope},
+  {id:'dec',  icon:'▦',  name:'画像復元器',   sub:'信号を絵に戻す',   open:devDecoder, lock:'videoHint'},
+  {id:'calc', icon:'🖩',  name:'計算機',       sub:'刻みを数に直す',   open:devCalc},
+  {id:'star', icon:'✳',  name:'星図端末',     sub:'パルサーを調べる', open:devStar, lock:['pulsarHint','aPulsarHint']},
+];
+function devLocked(d){
+  if(!d.lock) return false;
+  const ks = Array.isArray(d.lock)? d.lock : [d.lock];
+  return !ks.some(k=>S.flags[k]);
+}
+function openDevices(){ return DEVICES.filter(d=>!devLocked(d)).map(d=>d.name); }
+function renderDevices(){
+  const w = $('#devices'); w.innerHTML='';
+  for(const d of DEVICES){
+    const locked = devLocked(d);
+    const btn = el('button','thing',
+      `<span class="ic" style="font-size:16px">${d.icon}</span>
+       <span class="tx"><b>${locked?'？？？':d.name}</b><i>${locked?'使い道がまだ分からない':d.sub}</i></span>`);
+    if(locked) btn.disabled=true; else btn.onclick=d.open;
+    w.appendChild(btn);
+  }
+}
+function renderNotes(){
+  const w=$('#pane-notes'); w.innerHTML='';
+  if(!S.notes.length){ w.innerHTML='<p class="dim" style="font-size:12px">まだ何も書いていない。<br>円盤のあちこちを調べてみよう。</p>'; return; }
+  for(const n of S.notes){
+    w.appendChild(el('div','note',`<b>${n.t}</b><span class="v">${n.v}</span>`));
+  }
+}
+function renderQuests(){
+  const w=$('#pane-quests'); w.innerHTML='';
+  const list = QUESTS.filter(q=> q.part===1 || S.flags.alien);
+  let lastPart=0;
+  for(const q of list){
+    if(q.part!==lastPart){ lastPart=q.part;
+      w.appendChild(el('div',null,`<div style="font-size:10.5px;letter-spacing:.2em;color:var(--gold-dim);margin:6px 0 8px">${q.part===1?'第 一 部 ― ボイジャーの円盤':'第 二 部 ― 異星の円盤'}</div>`)); }
+    const done = !!S.solved[q.id];
+    const box = el('div','quest'+(done?' done':'')+(q.big?' big':''));
+    box.innerHTML = `<div class="q">${q.q}</div>`;
+    if(done){
+      const shown = el('div','mono'); shown.style.cssText='color:var(--green);font-size:12px';
+      shown.textContent = q.ansShown || (q.ans[0]+(q.unit||''));
+      box.appendChild(shown);
+    }else{
+      const row = el('div','ansrow');
+      row.innerHTML = `<input type="text" placeholder="こたえ" data-q="${q.id}"><button>確認</button>`;
+      const inp = row.querySelector('input'), btn = row.querySelector('button');
+      const go = ()=>{ tryAnswer(q, inp); };
+      btn.onclick=go; inp.addEventListener('keydown',e=>{ if(e.key==='Enter') go(); });
+      box.appendChild(row);
+      const hb = el('div','hintbox');
+      const nh = S.hints[q.id]||0;
+      for(let i=0;i<nh;i++) hb.appendChild(el('div','hinttext','ヒント'+(i+1)+'：'+q.hints[i]));
+      if(nh < q.hints.length){
+        const b = el('button',null,'ヒントを見る（'+(nh+1)+'/'+q.hints.length+'）');
+        b.onclick=()=>{ S.hints[q.id]=nh+1; save(); renderQuests(); };
+        hb.appendChild(b);
+      }
+      box.appendChild(hb);
+    }
+    w.appendChild(box);
+  }
+}
+function tryAnswer(q, inp){
+  const v = inp.value.trim();
+  if(!v) return;
+  let ok = false;
+  if(q.num){ const f = numOf(v); if(!isNaN(f) && f>=q.num[0] && f<=q.num[1]) ok = true; }
+  if(!ok) ok = matchAns(v, q.ans, !!q.num);
+  if(ok && q.needFlag && !S.flags[q.needFlag]){
+    toast('その言葉が本当にこの盤に入っているのか、自分の耳で確かめよう','ng');
+    return;
+  }
+  if(ok){ q.ansShown = v; solveQuest(q.id); }
+  else { inp.style.borderColor='var(--red)'; toast('ちがうようだ','ng');
+    setTimeout(()=>inp.style.borderColor='', 700); }
+}
+
+/* ---------- 観察 ---------- */
+function observe(hsId){
+  const key = (S.disc==='alien' && OBS['a'+hsId]) ? 'a'+hsId
+            : (S.disc==='alien' && hsId==='scanNum') ? 'scanNumA' : hsId;
+  const o = OBS[key] || OBS[hsId];
+  if(!o) return;
+  const box = el('div');
+  if(o.z) box.innerHTML += zoomCover(o.z[0], o.z[1]);
+  if(o.fig==='countTable') box.innerHTML += countTableSVG();
+  box.innerHTML += o.body;
+  if(o.marks){
+    box.appendChild(marksReader(o.marks.bits, o.marks.cap, o.note));
+  }
+  if(o.marks2){
+    box.appendChild(marksReader(o.marks2.bits, o.marks2.cap, null));
+  }
+  if(o.marksA){
+    box.appendChild(alienReader(o.marksA.n(), o.marksA.cap, o.note));
+  }
+  if(o.marksA2){
+    for(const m of o.marksA2) box.appendChild(alienReader(m.n(), m.cap));
+  }
+  if(o.psrList) box.appendChild(psrListReader(o.psrList==='alien'));
+  if(o.note && !o.marks && !o.marksA) noteAdd(o.note.id, o.note.t, o.note.v);
+  if(o.unlock){
+    const before = openDevices();
+    if(flag(o.unlock)){
+      checkUnlocks();
+      const now = openDevices().filter(n=>!before.includes(n));
+      if(now.length) setTimeout(()=>toast('「'+now.join('」「')+'」が使えるようになった'),700);
+    }
+  }
+  S.seen[S.disc+':'+hsId]=true; save();
+  $$('.hot').forEach(h=>{ if(S.seen[S.disc+':'+h.dataset.hs]) h.classList.add('seen'); });
+  openModal(o.t, box);
+}
+function sendToCalc(v, base, label){
+  S.dev.calcPreset = {v:String(v), base:base||2}; save();
+  toast((label||'この数')+'を計算機に送った');
+}
+/* 刻みを拡大して見せ、押すと記録に書き写す */
+function marksReader(bits, cap, note){
+  const d = el('div');
+  const per = 22;
+  let rows='';
+  for(let i=0;i<bits.length;i+=per){
+    rows += `<div class="markrow">`+bits.slice(i,i+per).split('').map(b=>
+      `<span class="mk ${b==='1'?'one':'zero'}"></span>`).join('')+`</div>`;
+  }
+  d.innerHTML = `<div class="marks"><div class="cap">${cap}</div>${rows}</div>`;
+  const row = el('div','ctlrow');
+  const b = el('button','btn','記録に書き写す');
+  b.onclick = ()=>{
+    if(note) noteAdd(note.id, note.t, bits);
+    else noteAdd('n_'+bits.slice(0,8), cap, bits);
+    b.disabled=true; b.textContent='書き写した';
+  };
+  const b2 = el('button','btn primary','計算機に送る');
+  b2.onclick = ()=> sendToCalc(bits, 2, cap);
+  row.appendChild(b); row.appendChild(b2);
+  d.appendChild(row);
+  return d;
+}
+function alienReader(n, cap, note){
+  const ds = alienDigits(n);
+  const d = el('div');
+  d.innerHTML = `<div class="marks"><div class="cap">${cap}</div>
+    <div class="markrow">${ds.map(x=>`<span class="grp">${x===0?'—':'｜'.repeat(x)}</span>`).join('')}</div></div>`;
+  const row = el('div','ctlrow');
+  const b = el('button','btn','記録に書き写す');
+  b.onclick=()=>{ const v=ds.join(' ');
+    noteAdd(note? note.id : ('na_'+n), note? note.t : cap, v);
+    b.disabled=true; b.textContent='書き写した'; };
+  const b2 = el('button','btn primary','計算機に送る');
+  b2.onclick=()=> sendToCalc(ds.join(''), 8, cap);
+  row.appendChild(b); row.appendChild(b2);
+  d.appendChild(row);
+  return d;
+}
+/* 地図の線を1本ずつ書き出す（線に沿った刻みを目で追う作業の代わり） */
+function psrListReader(alien){
+  const list = alien? ALIEN_PSR : PULSARS;
+  const d = el('div');
+  const rows = list.map((p,i)=>{
+    const bits = p.bin || Math.round(p.P/F.H_T).toString(2);
+    const n = parseInt(bits,2);
+    const txt = alien ? alienDigits(Math.round(p.P/F.H_T)).map(x=>x===0?'—':'｜'.repeat(x)).join(' ')
+                      : bits.replace(/1/g,'｜').replace(/0/g,'—');
+    return `<tr data-i="${i}" style="cursor:pointer"><td style="white-space:nowrap">${i+1}本目 ▸</td>`+
+      `<td class="mono" style="font-size:10px;word-break:break-all;letter-spacing:-1px">${txt}</td></tr>`;
+  }).join('');
+  d.innerHTML = `<p class="dim">線に沿った刻みを1本ずつ書き写した（${alien?'かたまりごとに区切ってある':'左が上位の桁'}）。
+    <b>行を押すと、その数を計算機に送る。</b></p>
+    <div style="max-height:260px;overflow:auto"><table class="tbl">${rows}</table></div>
+    <p class="dim">短い列ほど小さい数＝速く回っている天体。</p>`;
+  d.querySelectorAll('tr[data-i]').forEach(tr=> tr.onclick=()=>{
+    const p=list[+tr.dataset.i];
+    sendToCalc(alien? alienDigits(Math.round(p.P/F.H_T)).join('') : (p.bin||Math.round(p.P/F.H_T).toString(2)),
+      alien?8:2, (+tr.dataset.i+1)+'本目の数');
+  });
+  return d;
+}
+function countTableSVG(){
+  let s='';
+  for(let n=1;n<=9;n++){
+    const y=30+(n-1)*34;
+    for(let i=0;i<n;i++) s+=`<circle cx="${40+i*26}" cy="${y}" r="7" fill="#0e1620"/>`;
+    s+=`<line x1="290" y1="${y-13}" x2="290" y2="${y+13}" stroke="#0e1620" stroke-width="2" opacity=".3"/>`;
+    s+=`<g stroke="#0e1620" fill="none" stroke-linecap="round">${alienNumSVG(n,330,y,{k:1.1,h:11,gap:22})}</g>`;
+  }
+  return `<svg viewBox="0 0 520 330" class="fig" style="width:100%;max-width:420px;background:#9aa6b4;border-radius:8px;padding:6px">${s}</svg>`;
+}
+
+/* ======================================================================
+   装置
+   ====================================================================== */
+function devTurntable(){
+  const d = curDisc();
+  const box = el('div');
+  box.innerHTML = `
+    <p class="dim">円盤：<b style="color:var(--gold2)">${d.name}</b>　／　針は外周に置かれている。</p>
+    <div class="ctlrow">
+      <label>1回転にかかる時間 <input type="number" id="tRot" step="0.1" value="${S.dev['rot_'+S.disc]||''}" placeholder="?"> 秒</label>
+      <button class="btn" id="tSet">設定</button>
+      <span id="tRpm" class="mono dim"></span>
+    </div>
+    <div id="tPanel" style="display:none">
+      <div class="ctlrow">
+        <label>位置 <input type="number" id="tPos" step="0.1" min="0" max="${d.side}" value="${S.dev['pos_'+S.disc]||0}"> 秒</label>
+        <span id="tFmt" class="mono"></span>
+        <button class="btn primary" id="tPlay">▶ 再生</button>
+        <button class="btn" id="tStop">■ 停止</button>
+      </div>
+      <div class="ctlrow">
+        <label>あるいは <input type="number" id="tRev" step="1" min="0" placeholder="?"> 回転目へ</label>
+        <button class="btn" id="tGo">その位置へ</button>
+        <span class="dim" style="font-size:11.5px">（回転数 × 1回転の秒数）</span>
+      </div>
+      <input type="range" id="tSlide" min="0" max="${d.side}" step="0.1" value="${S.dev['pos_'+S.disc]||0}" style="width:100%;accent-color:var(--gold)">
+      <div class="readout" id="tOut">―</div>
+    </div>`;
+  openModal('ターンテーブル', box, ()=>auStop());
+  const rot = $('#tRot'), panel=$('#tPanel'), pos=$('#tPos'), slide=$('#tSlide');
+  const showRot = ()=>{
+    const v = parseFloat(S.dev['rot_'+S.disc]);
+    if(v>0){ $('#tRpm').textContent = '毎分 '+(60/v).toFixed(2)+' 回転';
+      panel.style.display=''; } else panel.style.display='none';
+  };
+  $('#tSet').onclick = ()=>{
+    const v = parseFloat(rot.value);
+    if(!(v>0)){ toast('先に数を入れよう','ng'); return; }
+    S.dev['rot_'+S.disc]=v; save(); showRot();
+    const right = Math.abs(v-d.rot) < Math.max(0.008, d.rot*0.004);
+    if(right){ toast('針が溝をつかんだ','ok');
+      if(S.disc==='voyager'){ if(!S.solved.q1) solveQuest('q1',true); flag('rotOK'); }
+      else { if(!S.solved.e2) solveQuest('e2',true); flag('aRotOK'); }
+      checkUnlocks();
+    } else toast('音が伸びたり縮んだりして、意味を成さない','ng');
+    update();
+  };
+  const update = ()=>{
+    const t = parseFloat(pos.value)||0;
+    $('#tFmt').textContent = fmtT(t);
+    const b = bandAt(t);
+    const rotSet = parseFloat(S.dev['rot_'+S.disc])||0;
+    const right = Math.abs(rotSet-d.rot) < Math.max(0.008, d.rot*0.004);
+    let msg = right ? b.label : '回す速さが違う。音は歪んで意味を成さない。';
+    if(right && b.kind==='greet' && S.disc==='voyager'){
+      msg = '人の声。数秒ごとに、まったく違う言葉に切り替わっていく。どれも聞き取れない。';
+    }
+    $('#tOut').textContent = msg;
+    S.dev['pos_'+S.disc]=t; save();
+  };
+  const startPlay = (fromButton)=>{
+    const t=parseFloat(pos.value)||0, b=bandAt(t);
+    const rotSet=parseFloat(S.dev['rot_'+S.disc])||0;
+    const sp = rotSet>0 ? d.rot/rotSet : 1;
+    auPlay(b.kind, sp);
+    if(fromButton && Math.abs(rotSet-d.rot) < Math.max(0.008, d.rot*0.004)) checkVoice(t);
+  };
+  let auT=null;
+  const restart=()=>{ clearTimeout(auT); auT=setTimeout(()=>{ if(AU.on) startPlay(false); }, 200); };
+  pos.oninput = ()=>{ slide.value=pos.value; update(); restart(); };
+  slide.oninput= ()=>{ pos.value=slide.value; update(); restart(); };
+  $('#tGo').onclick=()=>{
+    const rev=parseFloat($('#tRev').value), rs=parseFloat(S.dev['rot_'+S.disc])||0;
+    if(!(rev>0)||!(rs>0)){ toast('先に1回転の時間と、回転数を入れよう','ng'); return; }
+    pos.value=(rev*rs).toFixed(1); slide.value=pos.value; update();
+    toast(rev+' 回転目 ＝ '+(rev*rs).toFixed(1)+' 秒');
+  };
+  $('#tPlay').onclick=()=>startPlay(true);
+  $('#tStop').onclick=()=>{ auStop(); };
+  showRot(); update();
+}
+function greetIndexAt(t){
+  const d=curDisc(), b=d.bands.find(x=>x.kind==='greet'); if(!b) return -1;
+  const each = (b.t1-b.t0)/GREETS.length;
+  return Math.floor((t-b.t0)/each);
+}
+/* 目的の回転数の位置に合わせると声が聞こえる */
+function checkVoice(t){
+  const d=curDisc();
+  const rotSet = parseFloat(S.dev['rot_'+S.disc])||d.rot;
+  // 「何回転目か」で判定する。プレイヤーが使った回転時間でも、正しい値でも合えばよい
+  const hit = Math.abs(t/d.rot - d.greetRot) <= 0.6 || Math.abs(t/rotSet - d.greetRot) <= 0.6;
+  if(!hit) return;
+  auStop();
+  if(S.disc==='voyager'){
+    flag('greetHeard');
+    setTimeout(()=>{
+      speak('こんにちは。お元気ですか。');
+      openModal('聞こえた声', `<p class="dim">位置 ${fmtT(t)}。針は溝をなぞりつづける。</p>
+        <p class="lead" style="font-size:19px;text-align:center;letter-spacing:.1em;margin:22px 0">
+        こんにちは。お元気ですか。</p>
+        <p class="dim" style="text-align:center">― 1977年に録音された、この盤でたった一度の日本語。<br>
+        55の挨拶のほとんどが名乗りと祈りであるなかで、これだけが<b>問いかけ</b>だった。</p>`);
+    }, 260);
+  }else{
+    flag('aVoiceHeard');
+    setTimeout(()=>{
+      speak('こんにちは。お元気ですか。');
+      openModal('雑音の向こうから', `<p class="dim">位置 ${fmtT(t)}。ノイズの層が、ゆっくりと剥がれていく。</p>
+        <p style="text-align:center;color:var(--ink-dim)">……ザ……ザザ……</p>
+        <p class="lead" style="font-size:19px;text-align:center;letter-spacing:.1em;margin:22px 0">
+        こんにちは。お元気ですか。</p>
+        <p style="text-align:center;color:var(--gold2)">同じ声だ。<br>1977年に、我々が送り出した、あの声。</p>`);
+    }, 260);
+  }
+}
+
+function spinning(){
+  const d=curDisc();
+  return Math.abs((parseFloat(S.dev['rot_'+S.disc])||0) - d.rot) < Math.max(0.008, d.rot*0.004);
+}
+const NOSIG = `<p class="lead">信号が来ていない。</p>
+  <p>溝から拾えるのは、円盤が<b>正しい速さで回っているとき</b>だけだ。
+  ターンテーブルに1回転の時間を入れて、針を落とすところから始めよう。</p>`;
+
+function devScope(){
+  const d = curDisc();
+  if(!spinning()){ openModal('波形モニタ', NOSIG); return; }
+  const box = el('div');
+  box.innerHTML = `
+    <p class="dim">いま針のある場所の信号の形を見る。</p>
+    <canvas class="screen" id="scCv" width="700" height="220"></canvas>
+    <div class="ctlrow">
+      <label>位置 <input type="number" id="scPos" step="0.1" value="${S.dev['pos_'+S.disc]||0}"> 秒</label>
+      <label>拡大 <input type="range" id="scZoom" min="1" max="400" value="60"></label>
+    </div>
+    <div class="readout" id="scOut"></div>`;
+  openModal('波形モニタ', box);
+  const cv=$('#scCv'), g=cv.getContext('2d');
+  const draw=()=>{
+    const t=parseFloat($('#scPos').value)||0, z=parseFloat($('#scZoom').value);
+    const b=bandAt(t);
+    g.fillStyle='#05070b'; g.fillRect(0,0,cv.width,cv.height);
+    g.strokeStyle='#1c2b1e'; g.lineWidth=1;
+    for(let i=0;i<=10;i++){ g.beginPath(); g.moveTo(i*70,0); g.lineTo(i*70,220); g.stroke(); }
+    for(let i=0;i<=4;i++){ g.beginPath(); g.moveTo(0,i*55); g.lineTo(700,i*55); g.stroke(); }
+    g.strokeStyle='#7fdc8a'; g.lineWidth=1.6; g.beginPath();
+    if(b.kind==='video'){
+      const sig=signalOf(S.disc);
+      const per = d.horiz?IMGW:IMGH;
+      const base = Math.floor((t-b.t0)/(b.t1-b.t0) * (sig.length-1400));
+      for(let i=0;i<700;i++){
+        const v=sig[Math.max(0,base+Math.floor(i*z/60))]||0;
+        const y=210-v/255*200; i?g.lineTo(i,y):g.moveTo(i,y);
+      }
+      $('#scOut').textContent =
+          '規則正しい。同じ長さの区切りが、寸分たがわず繰り返している。\n'
+        + '区切りの頭には必ず鋭いパルスが立ち、そのあとは明るさのような滑らかな上下が続く。\n'
+        + '――音ではない。これは絵だ。細い線を何本も並べて、絵が送られている。\n'
+        + '（1本の長さと、1枚あたりの本数さえ分かれば、元の絵に戻せるはずだ）';
+      if(flag('videoHint')){ checkUnlocks(); setTimeout(()=>toast('「画像復元器」が使えるようになった'),600); }
+    }else{
+      for(let i=0;i<700;i++){
+        const p=(t*13+i*z/900);
+        const v=Math.sin(p*2.1)*0.4+Math.sin(p*5.3)*0.3+Math.sin(p*11.7)*0.2+(Math.random()-.5)*0.16;
+        const y=110-v*95; i?g.lineTo(i,y):g.moveTo(i,y);
+      }
+      $('#scOut').textContent = b.kind==='greet' ? '不規則。人の声の形をしている。'
+        : b.kind==='music' ? '周期はあるが、繰り返しの単位が長い。音楽だ。'
+        : '雑然としている。自然の音のようだ。';
+    }
+    g.stroke();
+  };
+  $('#scPos').oninput=draw; $('#scZoom').oninput=draw; draw();
+}
+
+function devDecoder(){
+  const d = curDisc();
+  if(!spinning()){ openModal('画像復元器', NOSIG); return; }
+  const k = 'dec_'+S.disc;
+  const st = S.dev[k] || (S.dev[k]={ms:5, lines:300, horiz:false, invert:false, idx:0});
+  const box = el('div');
+  box.innerHTML = `
+    <p class="dim">溝から拾った信号を、絵に組み直す。4つの設定が合わないと絵にならない。</p>
+    <p class="dim" style="font-size:11.5px">${S.disc==='voyager'
+      ? '※この複製盤には、115枚のうち10枚ぶんの信号だけが写されている。'
+      : '※受信できた信号から、6枚ぶんが取り出せている。'}</p>
+    <canvas class="screen" id="dcCv" width="560" height="420" style="max-width:100%"></canvas>
+    <div class="ctlrow">
+      <label>線1本の長さ <input type="number" id="dcMs" step="0.01" value="${st.ms}"> ミリ秒</label>
+      <label>1枚の本数 <input type="number" id="dcN" step="1" value="${st.lines}"> 本</label>
+    </div>
+    <div class="ctlrow">
+      <label>線の向き <select id="dcH"><option value="v">縦</option><option value="h">横</option></select></label>
+      <label>明るさ <select id="dcI"><option value="0">そのまま</option><option value="1">白黒を逆に</option></select></label>
+      <button class="btn" id="dcPrev">◀ 前の絵</button>
+      <button class="btn" id="dcNext">次の絵 ▶</button>
+    </div>
+    <div class="readout" id="dcOut"></div>`;
+  openModal('画像復元器', box);
+  const cv=$('#dcCv');
+  $('#dcH').value = st.horiz?'h':'v'; $('#dcI').value = st.invert?'1':'0';
+  const draw=()=>{
+    st.ms = clamp(parseFloat($('#dcMs').value)||1, 0.1, 40);
+    st.lines = clamp(parseInt($('#dcN').value)||4, 4, 1024);
+    st.horiz = $('#dcH').value==='h';
+    st.invert= $('#dcI').value==='1';
+    save();
+    const sig = signalOf(S.disc);
+    const len = clamp(Math.round(st.ms*d.sr/1000), 8, 4096);
+    const per = d.horiz?IMGW:IMGH, nl = d.horiz?IMGH:IMGW;
+    const perfect = (len===per) && (st.lines===nl) && (st.horiz===d.horiz) && (st.invert===d.invert);
+    const start = st.idx*per*nl;
+    decodeToCanvas(cv, sig, start, {lineLen:len, lines:st.lines, horiz:st.horiz, invert:st.invert});
+    let msg = '';
+    if(perfect){
+      const pic = d.pics[st.idx];
+      msg = `1本 = ${len} 標本 ／ ${st.lines} 本で1枚`
+          + `\n★ 像が立った。 [${st.idx+1}/${d.pics.length}] ${pic.name}`;
+      onPicShown(st.idx);
+    }else{
+      // いちばん手前の食い違いだけを言う（全部並べると推理が要らなくなる）
+      let hint='';
+      if(st.horiz!==d.horiz)        hint='像が倒れている。線の向きが違うようだ';
+      else if(st.invert!==d.invert) hint='明暗が裏返って見える';
+      else if(len!==per){ const sh = len<per;
+        hint = st.horiz
+          ? `同期の点が下へ行くほど${sh?'右':'左'}へずれていく（線が${sh?'短':'長'}すぎる）`
+          : `同期の点が${sh?'右下がり':'右上がり'}に流れている（線が${sh?'短':'長'}すぎる）`;
+      }
+      else if(st.lines!==nl) hint='絵の切れ目がずれている（1枚あたりの本数が違う）';
+      msg = '像にならない。\n・'+hint;
+    }
+    $('#dcOut').textContent = msg;
+  };
+  let dcT=null;
+  const later=()=>{ clearTimeout(dcT); dcT=setTimeout(draw,140); };
+  ['dcMs','dcN'].forEach(id=> $('#'+id).oninput = later);
+  ['dcH','dcI'].forEach(id=> $('#'+id).oninput = draw);
+  $('#dcPrev').onclick=()=>{ st.idx=Math.max(0,st.idx-1); draw(); };
+  $('#dcNext').onclick=()=>{ st.idx=Math.min(d.pics.length-1,st.idx+1); draw(); };
+  draw();
+}
+function onPicShown(i){
+  const d=curDisc();
+  const isCircle = (i===0);                    // どちらの円盤も1枚目が較正の図形
+  if(S.disc==='voyager'){
+    if(isCircle && flag('decoded')){
+      toast('像が立った。解読は正しい','ok');
+      noteAdd('n_dec','絵の組み立て方','縦の線 512本 ／ 1本 8.34ミリ秒 ／ 縦横比 4:3 ／ 明るさ16段階');
+    }
+    if(i===d.pics.length-1 && flag('sawCredits')){
+      checkUnlocks();
+      setTimeout(()=>toast('最後の1枚は絵ではない。ことばの一覧だ'),800);
+    }
+  }else{
+    if(isCircle && flag('aDecoded')){
+      toast('彼らの像が立った','ok');
+      noteAdd('na_dec','彼らの絵の組み立て方',
+        ()=>'横の線 '+ALIEN_LINES+'本 ／ 1本 '+(ALIEN_SCAN_S*1000).toFixed(2)+'ミリ秒 ／ 明暗は逆');
+    }
+    if(i===d.pics.length-1 && flag('aSawCredits'))
+      setTimeout(()=>toast('彼らの最後の1枚にも、数がひとつだけ刻まれている'),800);
+  }
+  save();
+}
+
+function devCalc(){
+  const box = el('div');
+  box.innerHTML = `
+    <p class="dim">刻みをそのまま貼ってもよい（｜と—、1と0、どちらでも）。</p>
+    <div class="ctlrow">
+      <label>底 <select id="cBase"><option value="2">2（｜と—）</option><option value="8">8（かたまりの数）</option><option value="10">10</option></select></label>
+    </div>
+    <div class="ctlrow"><input type="text" id="cIn" style="width:100%;font-family:var(--mono)" placeholder="例: 100110000110010000000000000000000"></div>
+    <div class="readout" id="cOut">―</div>
+    <div class="ctlrow">
+      <button class="btn primary" id="cUnit">× 0.704 024 183 ナノ秒（水素の1）</button>
+    </div>
+    <div class="readout" id="cOut2">―</div>`;
+  openModal('計算機', box);
+  if(S.dev.calcPreset){ $('#cIn').value = S.dev.calcPreset.v; $('#cBase').value = String(S.dev.calcPreset.base); }
+  const clearOut=(m)=>{ $('#cOut').textContent=m; $('#cOut2').textContent='―'; S.dev.calcN=null; save(); return null; };
+  const calc=()=>{
+    let v = $('#cIn').value.trim();
+    v = v.replace(/[｜|]/g,'1').replace(/[—\-ー–]/g,'0').replace(/\s/g,'');
+    const base = parseInt($('#cBase').value);
+    if(!v) return clearOut('―');
+    const ok = v.split('').every(c=> c==='0' || parseInt(c,base)>0);
+    const n = parseInt(v, base);
+    if(!ok || isNaN(n)) return clearOut('読めない文字が混じっている');
+    $('#cOut').textContent = `${base}進 ${v}\n＝ 10進 ${n.toLocaleString('en-US')}`;
+    S.dev.calcN = n; save(); return n;
+  };
+  $('#cIn').oninput=calc; $('#cBase').onchange=calc;
+  $('#cUnit').onclick=()=>{
+    const n=calc();
+    if(!(n>0)){ toast('先に数を入れよう','ng'); return; }
+    const sec = n*F.H_T;
+    let s = `${n.toLocaleString('en-US')} × 0.704024183 ns\n＝ ${sec.toPrecision(6)} 秒`;
+    if(sec>=60) s += `\n＝ ${(sec/60).toFixed(2)} 分`;
+    if(sec<1)  s += `\n＝ ${(sec*1000).toPrecision(5)} ミリ秒`;
+    $('#cOut2').textContent = s;
+  };
+  calc();
+}
+
+function devStar(){
+  const box=el('div');
+  box.innerHTML=`
+    <p class="dim">地図の線に刻まれた周期を入れると、いま観測されている天体と照合する。
+    パルサーの周期は伸びる一方なので、「いまの値」との差から<b>その値が測られた年</b>が出る。</p>
+    <div class="ctlrow">
+      <input type="number" id="sP" step="0.000001" placeholder="周期（秒）" style="width:160px">
+      <button class="btn primary" id="sGo">照合する</button>
+      <button class="btn" id="sClr">一覧を消す</button>
+    </div>
+    <div class="readout" id="sList">まだ何も入れていない</div>
+    <div class="readout" id="sOut">―</div>
+    <div id="sExtra"></div>`;
+  openModal('星図端末', box);
+  const SKEY='starIn_'+S.disc;
+  S.dev[SKEY] = S.dev[SKEY] || [];
+  const relist=()=>{
+    $('#sList').textContent = S.dev[SKEY].length
+      ? '照合した周期（'+curDisc().name+'）：\n' + S.dev[SKEY].map((v,i)=>` ${i+1}) ${v} 秒`).join('\n')
+      : 'まだ何も入れていない';
+  };
+  $('#sClr').onclick=()=>{ S.dev[SKEY]=[]; save(); relist(); $('#sOut').textContent='―'; starExtra(); };
+  $('#sGo').onclick=()=>{
+    const p=parseFloat($('#sP').value);
+    if(!(p>0)){ toast('周期を入れよう','ng'); return; }
+    if(!S.dev[SKEY].includes(p)) S.dev[SKEY].push(p);
+    save(); relist();
+    const r = starAnalyze(S.dev[SKEY]);
+    $('#sOut').textContent = r.text;
+    if(r.epoch!=null){
+      if(r.years<0 && r.years>-200){ if(!S.solved.q5) toast('年代が出た。「謎」に書き込もう'); }
+      if(r.years>1000){ flag('aDated'); }
+    }
+    starExtra();
+  };
+  relist();
+  starExtra();
+  function starExtra(){
+    const w=$('#sExtra'); if(!w) return; w.innerHTML='';
+    if(S.flags.alien && S.flags.aDated){
+      const b=el('button','btn primary','線の向きから、この地図が描かれた場所を求める');
+      b.style.marginTop='10px';
+      b.onclick=()=>{
+        $('#sOut').textContent =
+`6本の線の向きを、地球から見た同じ天体の方向とくらべた。
+ずれの大半は、4万年ぶんの天体自身の移動で説明がつく。
+それを差し引いてなお残るずれ ―― そして刻みの無い、先に丸の付いた線。
+すべてを同時に満たす視点は、ただ一つ。
+
+　方向　きりん座　／　太陽からの距離　17.6 光年
+　該当天体：グリーゼ445（別名 AC+79 3888）
+　　赤色矮星。およそ秒速110キロで太陽系に近づいてきている。
+
+　備考：この星は約4万年後、太陽から3.45光年の距離を通過する。
+　　　　そのとき ボイジャー1号 は、この星から1.6光年の位置にいる。`;
+        flag('aOrigin'); toast('発信源が特定された','ok');
+      };
+      w.appendChild(b);
+    }
+  }
+}
+/* 入力された周期の集合から、矛盾のない「測定年」を探す */
+function starAnalyze(all){
+  const raw  = all.map(p => PULSARS.map(q=>({q, t:(p-q_now(q))/q.pdot/YEAR_S}))
+                              .filter(c=>Math.abs(c.t)<100000));
+  const bad  = all.filter((_,i)=>!raw[i].length);
+  const ps   = all.filter((_,i)=> raw[i].length);
+  const cand = raw.filter(c=>c.length);
+  const note = bad.length
+    ? String.fromCharCode(10,10)+'※ '+bad.join(' / ')+' 秒 は、どの天体の周期変化でも説明がつかない。'
+      +String.fromCharCode(10)+'　 読み間違いかもしれないので、この値は外して照合した。'
+    : '';
+  if(!cand.length) return {text:'どの天体の周期変化でも説明がつかない。線の刻みをもう一度確かめよう。', epoch:null};
+  let best=null;
+  for(const c0 of cand[0]){
+    let err=0, ok=true, picks=[c0];
+    for(let i=1;i<cand.length;i++){
+      let b=null;
+      for(const c of cand[i]) if(!b || Math.abs(c.t-c0.t)<Math.abs(b.t-c0.t)) b=c;
+      const tol = Math.max(400, Math.abs(c0.t)*0.05);
+      if(!b || Math.abs(b.t-c0.t) > tol){ ok=false; break; }
+      err += Math.abs(b.t-c0.t); picks.push(b);
+    }
+    if(ok && (!best || err<best.err)) best={err, picks, t:c0.t};
+  }
+  let s='';
+  if(!best){
+    s = '入力された周期どうしで、年代が一致しない。\n';
+    s += ps.map((p,i)=>` ${i+1}) ${p} 秒 → 候補 ` +
+      cand[i].map(c=>`${c.q.id}（${c.t>0?'+':''}${c.t.toFixed(0)}年）`).join(' / ')).join('\n');
+    s += '\n\n※ 読み間違いがあるかもしれない。もう一度、線の刻みを確かめよう。';
+    return {text:s+note, epoch:null};
+  }
+  if(cand[0].length>1 && ps.length<2){
+    s  = `${ps[0]} 秒 に当てはまる天体が複数ある：\n`;
+    s += cand[0].map(c=>`　${c.q.id}　… その場合この値は ${c.t>0?'約'+c.t.toFixed(0)+'年 先':'約'+(-c.t).toFixed(0)+'年 前'} のもの`).join('\n');
+    s += '\n\n→ どれが正しいかは、1本では決まらない。\n　 同じ地図の別の線の周期も入れてほしい。年代が一致する組み合わせは一つしかない。';
+    return {text:s+note, epoch:null};
+  }
+  const t = best.picks.reduce((a,c)=>a+c.t,0)/best.picks.length;
+  s  = '矛盾のない組み合わせが見つかった。\n';
+  s += best.picks.map((c,i)=>`　${ps[i]} 秒 ＝ ${c.q.id}（いまの周期 ${q_now(c.q).toFixed(6)} 秒）`).join('\n');
+  s += `\n\n→ この地図の数値が刻まれたのは\n　 いまから 約 ${Math.abs(t).toFixed(0)} 年 ${t<0?'前':'後'}`;
+  s += `（西暦 ${(2026.6+t).toFixed(0)} 年ごろ）`;
+  if(t>1000) s += '\n\n※ 「後」――つまり未来に刻まれた値である。装置の異常ではない。';
+  return {text:s+note, epoch:2026.6+t, years:t};
+}
+function q_now(p){
+  // 1970年ごろに測られた地図の値から、2026年の値を推定する
+  return p.P + p.pdot*(56.6*YEAR_S);
+}
+
+function afterword(){
+  openModal('あとがき ― どこまでが本当か', `
+  <p class="lead">この謎解きに出てきた「ボイジャーの円盤」は、細部まで実物どおりです。</p>
+  <table class="tbl">
+    <tr><th>ゲーム内</th><th>実物</th></tr>
+    <tr><td>外周の33個の刻み</td><td>実際に刻まれている <span class="mono">100110000110010000000000000000000</span>（＝5,113,380,864）。0.704024183nsを掛けて <b>3.5999秒</b>＝毎分16と2/3回転</td></tr>
+    <tr><td>側面図の下の43個</td><td><span class="mono">1000010110000000000000000000000000000000000</span>（＝4,587,025,072,128）→ <b>3,229秒＝53.8分</b>。ジャケットの説明文は「約1時間」</td></tr>
+    <tr><td>波形の下の24個</td><td><span class="mono">101101001100000000000000</span>（＝11,845,632）→ <b>8.34ミリ秒</b>／1走査線</td></tr>
+    <tr><td>枠の隅の5個</td><td><span class="mono">10000</span>＝<b>16</b>。明るさの段階数と考えられています</td></tr>
+    <tr><td>縦512本・4対3・最初は円</td><td>すべて実物どおり。円は「正しく解読できたか」の検証用</td></tr>
+    <tr><td>水素の図と「1」</td><td>中性水素の超微細遷移（21cm線・1420405751.768Hz）。その周期 <b>0.704024183ナノ秒</b> がすべての時間の単位</td></tr>
+    <tr><td>パルサー地図の14本＋1本</td><td>フランク・ドレイク設計。パイオニア10号の金属板の使い回し。線の数値は本物の周期（かに星雲パルサー <span class="mono">10110011100000101010000010</span>＝0.033130秒 など）</td></tr>
+    <tr><td>「1970年ごろ」</td><td>実際にこの地図から逆算した研究者がいて、答えは <b>西暦1969.7年±1.2年</b>。打ち上げ（1977年）ではなく<b>周期を測った年</b>が出てきます</td></tr>
+    <tr><td>ウラン238のしみ</td><td>直径2cm・0.00026マイクロキュリー。半減期で経過時間を測る第二の時計</td></tr>
+    <tr><td>55の言語の挨拶</td><td>日本語は「<b>こんにちは。お元気ですか。</b>」。他の多くが「宇宙の友へ」と格式張るなか、日本語だけが日常の口語でした</td></tr>
+    <tr><td>盤に手彫りされた文字</td><td>“To the makers of music — all worlds, all times”</td></tr>
+    <tr><td>グリーゼ445</td><td>約4万年後、ボイジャー1号はこの星から <b>1.6光年</b> のところを通ります（2号はロス248から1.7光年）</td></tr>
+    <tr><td>回す装置</td><td>針とカートリッジは積まれましたが、<b>ターンテーブルは積まれていません</b></td></tr>
+    <tr><td>「ことばの一覧」の絵と、日本語の行の回転数</td><td><b>この謎解きのための創作です</b>。
+      実物の最後の絵は弦楽四重奏の写真で、挨拶の場所を示す表は入っていません。
+      ただし日本語の挨拶が、挨拶の帯の1分48秒あたりにあることは実物どおりです</td></tr>
+  </table>
+  <p class="dim">創作なのは、<b>異星の円盤とその中身</b>、それに<b>日本語の場所を示す一覧表の絵</b>だけです。
+  8で繰り上がる数、横向きの走査、逆さまの明暗――
+  どれも「同じ物理を使いながら、流儀だけが違う」とどうなるか、という想像です。
+  なお、パルサーの周期を4万年も先まで一定の割合で伸ばす計算は、
+  実際には十分に年老いた天体にしか使えません（この謎解きではその6個だけを使っています）。</p>
+  <p>1977年にこの円盤を作った人たちは、受け取り手がいるかどうか分からないまま、
+  読み方の説明書を金属に彫りました。<br>
+  この謎解きは、その説明書を実際に読んでみる、という遊びでした。</p>`);
+}
+
+/* ======================================================================
+   ふしめ
+   ====================================================================== */
+function part1Clear(){
+  if(S.flags.alien) return;
+  flag('alien');
+  renderQuests(); renderProgress(); checkUnlocks();
+  $('#btnSwapDisc').style.display='';
+  openModal('三日後', `
+    <p>ボイジャーの円盤は、すべて読み終えた。<br>
+    金の板に刻まれていたのは、<b>読み方の説明書</b>だった。
+    数の書き方、時間の物差し、回し方、絵の組み立て方、そして我々の住所。</p>
+    <p>それを書いた人たちは、受け取る誰かがいると信じていた。</p>
+    <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+    <p class="lead">――そして今朝、観測所に一枚の円盤が届いた。</p>
+    <p>先月から追っていた奇妙な電波。その信号を物質化して組み上げたものだという。
+    銀色の、直径30センチの円盤。</p>
+    <p><b>そのジャケットの図は、ボイジャーのそれと、ぞっとするほど似ていた。</b></p>
+    <p class="dim">机の上の「◆ 異星の円盤へ」で持ち替えられる。</p>`);
+}
+function ending(){
+  auStop();
+  openModal('エピローグ', `
+    <p class="dim" style="text-align:center">― 4万年前 ―</p>
+    <p>1977年、我々は金の円盤に55の言語で挨拶を吹き込み、二機の探査機に載せて放り出した。
+    日本語の担当者は、格式ばった文句を選ばなかった。<br>
+    ただ、こう言った。</p>
+    <p class="lead" style="text-align:center;font-size:18px;margin:18px 0">こんにちは。お元気ですか。</p>
+    <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+    <p class="dim" style="text-align:center">― 4万年後 ―</p>
+    <p>グリーゼ445。きりん座の、太陽に向かって近づいてくる小さな赤い星。
+    その傍らを、電池の切れた探査機が音もなく通り過ぎた。
+    誰かがそれを拾い上げ、金の板に刻まれた説明書を読み、円盤を回した。</p>
+    <p>そして彼らは、我々とまったく同じ手順で返事を書いた。
+    水素を物差しにし、答え合わせに円を置き、パルサーで住所と日付を記した。<br>
+    ただ、数は8で繰り上がり、絵の線は横向きで、明暗は逆さまだった。</p>
+    <p>最後の溝には、彼らの声ではなく、<b>我々の声</b>が入っていた。
+    4万年かけて届き、4万年かけて返ってきた、たった一言。</p>
+    <p class="lead" style="text-align:center;font-size:22px;letter-spacing:.14em;margin:24px 0;color:var(--gold2)">
+      こんにちは。お元気ですか。</p>
+    <p>その声のあとに、もうひとつだけ刻まれていた。<br>
+    ふたつの丸と、それを結ぶ線。真ん中から垂れた、たった1本の棒。</p>
+    <p class="lead" style="text-align:center;font-size:20px;margin:16px 0">｜</p>
+    <p style="text-align:center">我々が最初に教えた、たったひとつの記号。<b>「1」。</b><br>
+    ―― 問いに対する、<b>はい</b>。</p>
+    <p style="text-align:center" class="dim">― お わ り ―</p>
+    <p style="text-align:center;font-size:12px" class="dim">
+      ボイジャー1号は秒速17キロ、2号は秒速15キロで、いまも飛び続けている。<br>
+      金の円盤の寿命は、10億年と見積もられている。</p>
+    <p style="text-align:center;margin-top:18px">
+      <button class="btn primary" onclick="afterword()">あとがき ― どこまでが本当か</button></p>`);
+  flag('cleared'); renderProgress();
+}
+
+/* 異星の円盤の記録面 */
+function alienBack(){
+  let s = `<defs>
+    <radialGradient id="gAB" cx="44%" cy="32%" r="80%">
+      <stop offset="0%" stop-color="#c3ccd6"/><stop offset="34%" stop-color="#8b97a5"/>
+      <stop offset="72%" stop-color="#57626f"/><stop offset="100%" stop-color="#2f3843"/>
+    </radialGradient></defs>`;
+  s += `<circle cx="500" cy="500" r="499" fill="url(#gAB)"/>`;
+  const bands=[[300,492,.40,120,1.5],[176,296,.24,64,1.6]];
+  for(const [r0,r1,op,n,w] of bands){
+    for(let i=0;i<n;i++){ const r=r0+(r1-r0)*i/n;
+      s+=`<circle cx="500" cy="500" r="${r.toFixed(1)}" fill="none" stroke="#141a22" stroke-opacity="${op}" stroke-width="${w}"/>`;
+      s+=`<circle cx="500" cy="500" r="${(r+(r1-r0)/n/2).toFixed(1)}" fill="none" stroke="#eef4fb" stroke-opacity="${op*0.45}" stroke-width="${w*0.7}"/>`; }
+  }
+  for(const r of [298,174]) s+=`<circle cx="500" cy="500" r="${r}" fill="none" stroke="#141a22" stroke-opacity=".6" stroke-width="3"/>`;
+  s += `<circle cx="500" cy="500" r="499" fill="url(#sheenA)"/>`;
+  s += `<circle cx="500" cy="500" r="170" fill="#96a3b2"/>`;
+  s += `<circle cx="500" cy="500" r="170" fill="none" stroke="#2b3542" stroke-width="3"/>`;
+  s += `<circle cx="500" cy="500" r="22" fill="#0a0a0a"/>`;
+  // 中央には彼らの印：8方に伸びる肢
+  s += `<g stroke="#131a24" fill="none" stroke-width="4" stroke-linecap="round">`;
+  for(let i=0;i<8;i++){ const a=i*Math.PI/4+Math.PI/8;
+    s += `<line x1="${(500+Math.cos(a)*44).toFixed(1)}" y1="${(500+Math.sin(a)*44).toFixed(1)}" x2="${(500+Math.cos(a)*118).toFixed(1)}" y2="${(500+Math.sin(a)*118).toFixed(1)}"/>`; }
+  s += `<circle cx="500" cy="500" r="44"/></g>`;
+  s += `<circle class="hotr" fill="none" stroke="transparent" data-hs="agrooveA" data-cap="外側の帯" cx="500" cy="500" r="396" stroke-width="192"/>`;
+  s += `<circle class="hotr" fill="none" stroke="transparent" data-hs="agrooveB" data-cap="内側の帯" cx="500" cy="500" r="236" stroke-width="122"/>`;
+  s += `<circle class="hot" fill="transparent" stroke="transparent" data-hs="alabel" data-cap="中央の印" cx="500" cy="500" r="170"/>`;
+  return svgTag(s);
+}
+OBS.agrooveA={t:'外側の帯', disc:'alien', body:`<p>溝は細かく規則的。ボイジャーの円盤で「絵」が入っていた帯と、まったく同じ手ざわりだ。</p>`};
+OBS.agrooveB={t:'内側の帯', disc:'alien', body:`<p>うねりが複雑で、長い繰り返しがある。ここには音が入っている。</p>`};
+OBS.alabel={t:'中央の印', disc:'alien', body:`
+  <p>中心から8本の線が放射している。<b>8本</b>。彼らの数の繰り上がりと同じ数だ。</p>
+  <p class="dim">ラベルに文字はない。文字を持たないのか、あるいは――
+  「読めない文字を刻んでも意味がない」と考えたのかもしれない。我々がそう考えたように。</p>`};
+
+/* ======================================================================
+   起動
+   ====================================================================== */
+function renderDisc(){
+  if(S.disc==='voyager'){
+    $('#faceFront').innerHTML = coverFront();
+    $('#faceBack').innerHTML  = coverBack();
+    $('#discTitle').textContent = 'ボ イ ジ ャ ー の 円 盤';
+  }else{
+    $('#faceFront').innerHTML = alienCover();
+    $('#faceBack').innerHTML  = alienBack();
+    $('#discTitle').textContent = '異 星 の 円 盤';
+  }
+  $$('#faceFront .hot, #faceBack .hot').forEach(h=>{ if(S.seen[S.disc+':'+h.dataset.hs]) h.classList.add('seen'); });
+  $$('#discCtl .pill[data-face]').forEach(x=>x.classList.toggle('on', x.dataset.face===S.face));
+  $('#disc').classList.toggle('flipped', S.face==='back');
+  $('#btnSwapDisc').style.display = S.flags.alien ? '' : 'none';
+  $('#btnSwapDisc').textContent = S.disc==='voyager' ? '◆ 異星の円盤へ' : '◆ ボイジャーの円盤へ';
+}
+function renderStory(){
+  const f=S.flags;
+  let t;
+  if(!f.rotOK) t = `深夜の解析室。机の上には、ボイジャーに積まれた金の円盤の複製と、針とカートリッジ。<b>回す装置は付いてこなかった</b>。まず、どれだけの速さで回せばいいのかを知らなければならない。`;
+  else if(!f.decoded) t = `円盤は回った。音が出た。だが、最初の8分ほどは音楽でも声でもない、規則正しい唸りが続いている。<b>あれは何だ？</b>`;
+  else if(!f.alien) t = `絵が出た。円、太陽系、DNA、人。1977年の人類が選んだ115枚。<b>最後の1枚まで送ってみよう。</b>`;
+  else if(!f.aDecoded) t = `異星の円盤。ジャケットの図は明らかにボイジャーの模倣だ。<b>だが細部が違う。違うところにこそ、彼らの流儀がある。</b>`;
+  else if(!f.cleared) t = `彼らの絵が立った。そこに写っていたものを見よ。<b>この手紙は、いつ、どこから来たのか。</b>`;
+  else t = `すべて読み終えた。円盤は、まだ静かに回っている。`;
+  $('#story').innerHTML = t;
+}
+function refreshAll(){
+  renderDisc(); renderShelf(); renderDevices(); renderQuests(); renderNotes(); renderProgress(); renderStory();
+}
+/* 円盤の表裏 */
+$$('#discCtl .pill[data-face]').forEach(b=> b.onclick=()=>{
+  S.face=b.dataset.face; save();
+  $$('#discCtl .pill[data-face]').forEach(x=>x.classList.toggle('on', x===b));
+  $('#disc').classList.toggle('flipped', S.face==='back');
+});
+$('#btnShowHot').onclick=()=>{
+  const on = $('#disc').classList.toggle('showhot');
+  $('#btnShowHot').classList.toggle('on', on);
+};
+$('#btnSwapDisc').onclick=()=>{
+  S.disc = S.disc==='voyager' ? 'alien' : 'voyager';
+  S.face='front'; save(); refreshAll();
+  toast(S.disc==='alien' ? '異星の円盤を手に取った' : 'ボイジャーの円盤に戻した');
+};
+/* ホットスポット */
+document.addEventListener('click', e=>{
+  const h = e.target.closest('.hot,.hotr'); if(!h) return;
+  observe(h.dataset.hs);
+});
+/* タブ */
+$$('#tabs button').forEach(b=> b.onclick=()=>{
+  $$('#tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  $$('.tabpane').forEach(p=>p.classList.toggle('on', p.id==='pane-'+b.dataset.tab));
+});
+$('#btnAfter').onclick=()=>afterword();
+$('#btnReset').onclick=resetAll;
+$('#btnHelp').onclick=()=>openModal('遊び方', `
+  <p><b>1.</b> まん中の円盤の、気になるところを<b>クリック</b>して観察する。表と裏は上のボタンで返せる。</p>
+  <p><b>2.</b> 左の<b>資料棚</b>には、読み方の手がかりになる本がある。右には<b>装置</b>がある。
+     観察して分かったことと、本に書いてあることを結びつけると、装置の使い方が分かる。</p>
+  <p><b>3.</b> 分かったことは右下の<b>「謎」</b>に書き込む。答えは日本語でも数字でもよい。
+     行き詰まったら<b>ヒント</b>を1段ずつ開ける。</p>
+  <p class="dim">・進行は自動で保存される。「最初から」で消せる。<br>
+     ・音が鳴る。音量に注意。<br>
+     ・数字の細かい丸めは気にしなくてよい（3.6 も 3.59 も正解になる）。</p>`);
+
+/* タイトル */
+$('#title .lead2').innerHTML =
+  `1977年、人類は2機の探査機に金メッキの円盤を積んで宇宙へ送り出した。<br>
+   拾った誰かが読めるように、円盤のジャケットには<b>説明書</b>が刻まれている。<br>
+   ――ただし、言葉は一切使わずに。`;
+$('#title .credit').innerHTML =
+  `所要 40〜70分 ／ 音が出ます ／ ボイジャーのジャケットの図と数値は実物どおり`;
+$('#tdiscG').innerHTML = `<g transform="translate(100,100) scale(0.2) translate(-500,-500)">${coverFrontInner(false)}</g>`;
+$('#btnStart').onclick=()=>{
+  S.started=true; save();
+  $('#title').classList.add('hide');
+  auCtx();
+  if(!S.flags.opened){ flag('opened');
+    setTimeout(()=>openModal('はじめに', `
+      <p class="dim">2026年7月。ある電波天文台の解析室。</p>
+      <p>机の上に置かれているのは、ボイジャー探査機に積まれた<b>ゴールデンレコード</b>の複製だ。
+      金メッキされた12インチの円盤と、それを収めるアルミの覆い ―― ジャケット。図が刻まれているのはこちらだ。</p>
+      <p>針とカートリッジは一緒に入っていた。<b>だが、回す装置は入っていない。</b>
+      拾った者が自分で考えるように、ということらしい。</p>
+      <p class="lead">まずは、このジャケットの図を読むことから始めよう。</p>`), 400);
+  }
+};
+load();
+refreshAll();
+if(S.started) $('#title').classList.add('hide');
+
+/* --- 開発用：SVGをPNG化してサーバに保存（作画確認） --- */
+if(location.port==='8131'){
+  window.snap = async function(sel, name, size){
+    const host = document.querySelector(sel);
+    const src  = host.tagName==='svg' ? host : host.querySelector('svg');
+    const c2 = src.cloneNode(true); size = size||760;
+    c2.setAttribute('width', size); c2.setAttribute('height', size);
+    const xml = new XMLSerializer().serializeToString(c2);
+    const img = new Image();
+    await new Promise((ok,ng)=>{ img.onload=ok; img.onerror=ng;
+      img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(xml); });
+    const c=document.createElement('canvas'); c.width=size; c.height=size;
+    const x=c.getContext('2d'); x.fillStyle='#0b0d12'; x.fillRect(0,0,size,size);
+    x.drawImage(img,0,0,size,size);
+    const r = await fetch('/snap',{method:'POST',body:(name||'snap')+'|'+c.toDataURL('image/png')});
+    return await r.text();
+  };
+  window.snapCanvas = async function(sel, name){
+    const c = document.querySelector(sel);
+    const r = await fetch('/snap',{method:'POST',body:(name||'snap')+'|'+c.toDataURL('image/png')});
+    return await r.text();
+  };
+  window.G = {S, F, DISCS, PULSARS, signalOf, solveQuest, flag, refreshAll,
+    goPart2:()=>{ ['q1','q2','q3','q4','q5','q6'].forEach(id=>S.solved[id]=true); part1Clear(); refreshAll(); }};
+}
+
+</script>
+<!-- ==== ここから下に SVG 生成 / 装置 / 謎データ を追加していく ==== -->
+</body>
+</html>

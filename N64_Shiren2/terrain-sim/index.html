@@ -172,6 +172,12 @@ const SHOP2_RATE_ADDR=0x129AFD; // 2軒目店率(=20)
    ・カテゴリ表: 21件 × 8B  {u8 cat(0=終端), u8 weight, u16 pad, u32 品目listPtr}
    ・品目list / ワナ表: {u8 id(0=終端), u8 weight} の並び
    ・店商品のカテゴリ表だけは専用の ptr表 SHOP_PTR_TABLE を フロアデータ+7 -1 で引く */
+/* ダンジョン番号(黄金の階段の出現階層表や腕輪の呪い率を引くときのindex)。
+   ダンジョン別レコード表から求まるが、その表を内蔵していない公開版でも必要なので
+   基礎設定アドレスからの対応を静的に持っておく。 */
+const DGN_NO_BY_BASIC={0x196570:0,0x1965AC:1,0x19663C:2,0x1966F0:3,0x1967BC:4,0x196900:5,
+ 0x196DB0:6,0x1972CC:7,0x1977E8:8,0x197D04:9,0x197D10:10,0x197D1C:11,0x197D40:12,0x197D88:13,
+ 0x197DD0:14,0x197E18:15,0x197E60:16,0x197EA8:17,0x197EF0:18,0x197F38:19,0x197F80:20};
 const SEG_BASE=0x194FC0;
 const DGN_REC=0x115B5C;
 const SHOP_PTR_TABLE=0x1B7C90;  // 店の商品      内部処理 (index=フロアデータ[7]-1)
@@ -344,7 +350,7 @@ function buildModel(){
       const fd=fi<fdN?Array.from(rom.slice(fdA+fi*38,fdA+fi*38+38)):null;
       const shuffle=(bd[3]&0x40)!==0 || !(bd[10]===0x00||bd[10]===0x03||bd[10]===0xFF);
       const town=bd[3]===0x27||bd[3]===0x0E;
-      d.rows.push({bd,fdIdx:fi,fd,shuffle,town,rec:d.rec});
+      d.rows.push({bd,fdIdx:fi,fd,shuffle,town,rec:d.rec,bdAddr:bdA});
     }
     model.dungeons.push(d);
   }
@@ -449,9 +455,12 @@ function analyzeFloor(row,ov){
     res.itemTbl=floorItemTable(row.rec,row.fdIdx);         // ダンジョン別(内部データ系)
     res.trapTbl=floorTrapTable(row.rec,row.fdIdx);
     res.ndooba=Array.from(rom.slice(NDOOBA_TABLE+fd[7]*3,NDOOBA_TABLE+fd[7]*3+3));
-    res.dgnNo=row.rec.idx;                                 // 腕輪の呪い率などのindex
   }
-  res.floorNo=row.bd[0];                                   // 内部データ(1始まりの階数)
+  /* ★アイテム表の有無に関係なく必要。黄金の階段の出現判定がこれを使うので、
+     ここを条件の中に入れるとアイテム表が無いとき黄金の階段が一切出なくなる。 */
+  res.dgnNo=DGN_NO_BY_BASIC[row.bdAddr!=null?row.bdAddr:-1];
+  if(res.dgnNo==null)res.dgnNo=row.rec?row.rec.idx:-1;
+  res.floorNo=row.bd[0];                                   // 1始まりの階数
   return res;
 }
 

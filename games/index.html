@@ -15,6 +15,13 @@
   header { text-align: center; margin-bottom: 40px; }
   h1 { font-size: 2.2rem; letter-spacing: .05em; }
   header p { margin-top: 10px; color: #93a0c0; }
+  .ai-note {
+    display: inline-block; margin-top: 14px; padding: 8px 16px;
+    background: rgba(90,123,255,.1); border: 1px solid #2e3a60;
+    border-radius: 999px; font-size: .85rem; color: #9aa6c6;
+  }
+  .ai-note a { color: #7d9bff; font-weight: 600; text-decoration: none; }
+  .ai-note a:hover { text-decoration: underline; }
   .grid {
     display: grid; gap: 22px; max-width: 900px; margin: 0 auto;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -42,6 +49,7 @@
   <header>
     <h1>🎮 ゲームコレクション</h1>
     <p>ブラウザでそのまま遊べる自作ゲーム集</p>
+    <p class="ai-note">🤖 このサイトと収録ゲームは、すべて Anthropic の <a href="https://claude.com/claude-code" target="_blank" rel="noopener">Claude Code</a> で生成しています。</p>
   </header>
   <main class="grid">
     <a class="card" href="./makai-hunter/">
@@ -81,6 +89,6 @@
       <span class="play">▶ プレイする</span>
     </a>
   </main>
-  <footer>Made with ❤️ &middot; GitHub Pages</footer>
+  <footer>Generated with 🤖 Claude Code (Anthropic) &middot; Hosted on GitHub Pages</footer>
 </body>
 </html>

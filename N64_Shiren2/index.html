@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>風来のシレン2 解析ツール (N64)</title>
+<style>
+  :root{ color-scheme: dark; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{
+    font-family: system-ui, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background: radial-gradient(circle at 20% 10%, #16233f, #090c14 60%);
+    color:#e2e8f5; min-height:100vh; padding:48px 20px; line-height:1.6;
+  }
+  header{ text-align:center; margin-bottom:14px; }
+  h1{ font-size:1.9rem; letter-spacing:.04em; }
+  header .sub{ margin-top:8px; color:#8fa2c8; font-size:.95rem; }
+  .lead{ max-width:860px; margin:22px auto 34px; color:#9fb0d0; font-size:.92rem;
+         background:rgba(255,255,255,.03); border:1px solid #26314e; border-left:3px solid #5b9cf8;
+         border-radius:10px; padding:14px 18px; }
+  .lead b{ color:#cfe0ff; }
+  .grid{ display:grid; gap:20px; max-width:860px; margin:0 auto;
+         grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); }
+  .card{ display:block; text-decoration:none; color:inherit;
+         background:linear-gradient(160deg,#1d2b4c,#141b30);
+         border:1px solid #2c3a5e; border-radius:16px; padding:22px;
+         transition:transform .15s ease, box-shadow .15s ease, border-color .15s; }
+  .card:hover{ transform:translateY(-4px); box-shadow:0 12px 30px rgba(0,0,0,.45);
+               border-color:#5b9cf8; }
+  .card .emoji{ font-size:2.3rem; line-height:1; }
+  .card h2{ font-size:1.15rem; margin:12px 0 8px; }
+  .card p{ color:#93a3c2; font-size:.9rem; }
+  .card .go{ margin-top:14px; display:inline-block; font-size:.84rem;
+             color:#7fb0ff; font-weight:600; }
+  .card.soon{ opacity:.5; pointer-events:none; }
+  .card.soon .go{ color:#6b7590; }
+  .tag{ display:inline-block; font-size:.72rem; padding:2px 8px; border-radius:999px;
+        background:#24314f; color:#8fb4ee; margin-left:6px; vertical-align:middle; }
+  footer{ text-align:center; margin-top:46px; color:#5d6a8c; font-size:.8rem; }
+  footer a{ color:#7fb0ff; }
+</style>
+</head>
+<body>
+<header>
+  <h1>風来のシレン2 <span style="font-size:.62em;color:#8fa2c8">鬼襲来！シレン城！</span></h1>
+  <p class="sub">NINTENDO64 版の解析ツール置き場</p>
+</header>
+
+<div class="lead">
+  実機のROMを逆アセンブルして得たアルゴリズムを、そのままブラウザ上で動かすツールを置いています。
+  <b>いずれも単一HTMLで、外部通信は一切ありません。</b>
+  ROMのデータそのものは同梱していないので、詳細な機能を使うにはお手元のROMをページにドロップしてください
+  (ドロップしたROMがどこかへ送られることはありません)。
+</div>
+
+<div class="grid">
+
+  <a class="card" href="terrain-sim/">
+    <div class="emoji">🗺️</div>
+    <h2>地形シミュレータ<span class="tag">β1.20</span></h2>
+    <p>各階でどの部屋タイプ・店・モンスターハウス・迷路などがどの確率で出るかを厳密計算し、
+       シードを指定してフロアのミニマップを生成します。地形と階段の配置は実機のアルゴリズムを移植したものです。</p>
+    <span class="go">ひらく →</span>
+  </a>
+
+  <div class="card soon">
+    <div class="emoji">🧪</div>
+    <h2>準備中</h2>
+    <p>ほかのツールもここに追加していきます。</p>
+    <span class="go">Coming soon</span>
+  </div>
+
+</div>
+
+<footer>
+  <p>個人の解析メモと自作ツールです。ゲーム本体のデータは含みません。</p>
+  <p style="margin-top:6px"><a href="../games/">ゲームコレクションはこちら</a></p>
+</footer>
+</body>
+</html>

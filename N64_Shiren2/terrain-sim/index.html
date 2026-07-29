@@ -70,7 +70,7 @@ td.heat{min-width:44px}
   <h1 title="各階でどの地形・店・モンスターハウスが出るかを調べるツール">シレン2 地形シミュレータ<span class="ver"> β1.20 (公開版)</span></h1>
   <button id="tabBtnProb" class="primary">フロアデータ</button>
   <button id="tabBtnMap">ミニマップ生成</button>
-  <span id="romStatus" class="note" title="対応ROM: 日本語版/英語版/デバッグ版/フェイ問インフラ版 (.z64/.v64/.n64)。ページにファイルをドロップすると実ROMデータに差し替え(対象領域は全版共通)"></span>
+  <span id="romStatus" class="note" ></span>
 </header>
 <main>
   <div id="app" style="display:none">
@@ -260,7 +260,7 @@ function normalizeRom(buf){
     for(let i=0;i<b.length;i+=2){o[i]=b[i+1];o[i+1]=b[i];} return o;}
   if(m===0x40123780){ const o=new Uint8Array(b.length); // n64 (32bit LE)
     for(let i=0;i<b.length;i+=4){o[i]=b[i+3];o[i+1]=b[i+2];o[i+2]=b[i+1];o[i+3]=b[i];} return o;}
-  throw "N64 ROMではありません(magic="+m.toString(16)+")";
+  throw "対応していないファイルです(magic="+m.toString(16)+")";
 }
 function loadRomBuf(buf,name){
   try{
@@ -280,7 +280,7 @@ function loadRomBuf(buf,name){
 // 内蔵データ(日本語版ROM実測値。基礎設定/フロアデータ/各テーブルのみの部分イメージ)
 function initDefault(){
   if(typeof DEFAULT_ROM_RANGES==="undefined"){
-    document.getElementById("romStatus").textContent="ROM (.z64) を読み込んでください(内蔵データなし)";
+    document.getElementById("romStatus").textContent="データを読み込めませんでした";
     return;
   }
   const r=new Uint8Array(0x1C0000);
@@ -289,7 +289,7 @@ function initDefault(){
     for(let i=0;i<bin.length;i++)r[addr+i]=bin.charCodeAt(i);
   }
   rom=r; buildModel();
-  document.getElementById("romStatus").textContent="内蔵データ(確率表のみ)で動作中 — ROM(.z64)をこのページにドロップすると全機能が有効になります";
+  document.getElementById("romStatus").textContent="内蔵データで動作中";
   document.getElementById("app").style.display="";
   renderAll();
   /* アイテム/ワナ/店商品テーブルは量が多い(127KB)ので deflate で内蔵している。
@@ -301,7 +301,7 @@ function initDefault(){
     buildModel();          // ダンジョン別レコードも blob 側なので作り直す
 
     document.getElementById("romStatus").textContent=
-      "内蔵データ(確率表のみ)で動作中 — ROM(.z64)をこのページにドロップすると全機能が有効になります";
+      "内蔵データで動作中";
     renderAll();
   });
 }
@@ -310,7 +310,7 @@ async function loadDefaultBlob(){
   if(typeof DEFAULT_ROM_BLOB_DEFLATE==="undefined")return false;
   if(typeof DecompressionStream!=="function"){
     document.getElementById("romStatus").textContent+=
-      " / ※この環境ではアイテム表を展開できません(ROMを読み込むと有効)";
+      " / ※この環境では一部のデータを展開できません";
     return false;
   }
   try{
@@ -619,7 +619,7 @@ document.getElementById("tabBtnMap").onclick=()=>showTab("map");
 function renderDungeon(){
   const d=model.dungeons[sel.dgn];
   document.getElementById("dgnInfo").textContent=
-    `基礎設定 @${hex(d.bdAddr,6)} (${d.rows.length}行) / フロアデータ @${hex(d.fdAddr,6)} (${d.fdRows}階分) / 2軒目店率=${model.shop2}%`;
+    `全${d.rows.length}階 / フロア設定 ${d.fdRows}種 / 2軒目店率=${model.shop2}%`;
   const wrap=document.getElementById("floorTableWrap");
   wrap.innerHTML="";
   const t=el("table",{class:"grid"});
@@ -674,7 +674,7 @@ function renderDetail(){
   const head=el("div",{class:"card"},
     el("h3",null,`${d.name} ${row.bd[0]?row.bd[0]+"F":"(村/特殊)"} — ${fname}  `,
       row.shuffle?el("span",{class:"tag shuffle"},"固定マップ系"):null,
-      whatif?el("span",{class:"tag warn"}," What-if適用中(ROM値と異なる)"):null));
+      whatif?el("span",{class:"tag warn"}," What-if適用中(元の値と異なる)"):null));
   const wf=el("div",{class:"row small"});
   wf.append("What-if: 部屋T ");
   const selT=el("select",null,
@@ -692,8 +692,8 @@ function renderDetail(){
     renderDetail();};
   wf.append(inM," ",
     el("button",{onclick:apply},"再計算"),
-    el("button",{onclick:()=>{whatif=null;renderDetail();}},"ROM値に戻す"),
-    el("span",{class:"note"},"※表示のみ。ROMは書き換えない(書換はダンジョン設定エディターで)"));
+    el("button",{onclick:()=>{whatif=null;renderDetail();}},"元の値に戻す"),
+    el("span",{class:"note"},"※表示を差し替えるだけで、データは書き換えません"));
   head.append(wf);
   box.append(head);
 
@@ -705,7 +705,7 @@ function renderDetail(){
     c1.append(el("p",null,"基礎+9=",el("b",null,hex(a.bd9))," → ",
       el("b",{style:"color:"+TYPE_COLORS[a.bd9]||""},a.bd9<14?TYPE_NAMES[a.bd9]:"?")," で固定"));
   else{
-    c1.append(el("p",{class:"small"},"基礎+9=0xFF → 地形ID ",el("b",null,a.tid)," の重み行(ROM ",hex(TERRAIN_TABLE+a.tid*14,6),")から抽選"));
+    c1.append(el("p",{class:"small"},"基礎+9=0xFF → 地形ID ",el("b",null,a.tid)," の重み行から抽選"));
     const tt=el("table",{class:"grid"});
     tt.append(el("tr",null,el("th",null,"type"),el("th",{class:"lbl"},"名称"),el("th",null,"重み"),el("th",null,"%"),el("th",{class:"lbl"},"このtypeで振られる判定")));
     for(let t2=0;t2<14;t2++){
@@ -764,7 +764,7 @@ function renderDetail(){
       const st=el("table",{class:"grid"});
       st.append(el("tr",null,...SHOP_CATS.map(c=>el("th",null,c))));
       st.append(el("tr",null,...a.shopCats.map(v=>el("td",null,s?(v*100/s).toFixed(0)+"%":"-"))));
-      c3.append(el("p",{class:"small"},"店種別(店表",a.fd[0x20],"→ROM ",hex(SHOPTYPE_TABLE+(a.fd[0x20]-1)*12,6),"):"),st);
+      c3.append(el("p",{class:"small"},"店種別(店表",a.fd[0x20],"):"),st);
     }
   }else if(shop.raw>0)
     c3.append(el("p",null,el("span",{class:"gated"},"店率"+a.fd[6]+"%が設定されているが、対応する部屋タイプ(0/7/8/10/13)が出ないため実効0%")));
@@ -777,7 +777,7 @@ function renderDetail(){
     mt.append(el("tr",null,...MH_THEMES.map(c=>el("th",null,c))));
     mt.append(el("tr",null,...a.mhThemes.map(v=>el("td",null,s?(v*100/s).toFixed(0)+"%":"-"))));
     mt.append(el("tr",null,...a.mhThemes.map(v=>el("td",{class:"small zero"},s?fmtPct(mh.eff*v/s)+"%":"-"))));
-    c3.append(el("p",{class:"small"},"テーマ分布(MH種",a.fd[9],"→ROM ",hex(MH_TABLE+a.fd[9]*10,6),") 上段=MH成立時 / 下段=フロア全体:"),mt);
+    c3.append(el("p",{class:"small"},"テーマ分布(MH種",a.fd[9],") 上段=MH成立時 / 下段=フロア全体:"),mt);
   }else if(mh.raw>0&&mh.eff===0)
     c3.append(el("p",null,el("span",{class:"gated"},"MH率"+a.fd[8]+"%が設定されているが、対応typeが出ないため実効0%")));
   else c3.append(el("p",{class:"zero small"},"MH率0%"));
@@ -806,13 +806,13 @@ function renderDetail(){
   const BD_LBL=["表階","階名","次階","フ型","怪物","+5","イベ上","イベ下","模様","部屋T","階型","BGM"];
   bt.append(el("tr",null,...BD_LBL.map(l=>el("th",null,l))));
   bt.append(el("tr",null,...row.bd.map(v=>el("td",{class:"mono"},v.toString(16).toUpperCase().padStart(2,"0")))));
-  raw.append(el("p",{class:"small"},"基礎設定12B @",hex(d.bdAddr+sel.floor*12,6),":"),bt);
+  raw.append(el("p",{class:"small"},"基礎設定 12バイト:"),bt);
   const ft2=el("table",{class:"grid small"});
   ft2.append(el("tr",null,...FD_COLS.map(c=>el("th",{title:"+"+hex(c[1])},c[0]))));
   ft2.append(el("tr",null,...FD_COLS.map(c=>{
     const v=c[1]===14?(row.fd[14]<<8|row.fd[15]):row.fd[c[1]];
     return el("td",null,v);})));
-  raw.append(el("p",{class:"small"},"フロアデータ38B @",hex(d.fdAddr+row.fdIdx*38,6)," (index ",row.fdIdx+1,"):"),ft2);
+  raw.append(el("p",{class:"small"},"フロアデータ 38バイト (index ",row.fdIdx+1,"):"),ft2);
   box.append(raw);
   box.append(el("p",{class:"note"},"数値はいずれもゲーム内部のデータにもとづきます — 風来のシレン2(N64)"));
 }
@@ -3051,7 +3051,7 @@ function renderMapTab(){
     mapSel.floor=d.rows.findIndex(r=>r.fd);
   const row=d.rows[mapSel.floor];
 
-  const ctl=el("div",{class:"card"},el("h3",null,"ミニマップ生成 — ロール結果(実ROM再現)を様式化レイアウトで可視化"));
+  const ctl=el("div",{class:"card"},el("h3",null,"ミニマップ生成 — 生成結果を様式化レイアウトで可視化"));
   /* ★対応範囲の明記(ページ上部・常時表示)。
      このタブが再現できるのは「毎回ランダム生成されるフロア」だけで、
      シャッフルダンジョンや固定マップ(床コード0x40系=グループ内スロット抽選)は
@@ -3085,7 +3085,7 @@ function renderMapTab(){
     el("span",{class:"note",title:"シードは0〜999999の範囲で指定してください。7桁以上でも動作はします。"},
       "※6桁(0〜999999)"),
     el("span",{class:"note",title:"部屋・通路の生成、特殊地形、店の中身、階段の配置まで再現しています。シレンの開始位置とフロアのアイテム/罠はまだ未対応です。"},
-      "★ROMを読み込むと店・モンスターハウスの中身まで再現して精度が上がります(未読込だと店/MHが出るフロアはそれ以降が食い違います)"));
+      "※店やモンスターハウスが出るフロアは、それ以降の部屋割りと階段の位置がゲーム内と食い違うことがあります"));
   ctl.append(r1);
   box.append(ctl);
   if(!row||!row.fd){box.append(el("div",{class:"card"},"このフロアにはフロアデータがありません"));return;}

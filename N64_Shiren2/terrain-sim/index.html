@@ -67,7 +67,7 @@ td.heat{min-width:44px}
 </head>
 <body>
 <header>
-  <h1 title="各階でどの地形・店・モンスターハウスが出るかを調べるツール">シレン2 地形シミュレータ<span class="ver"> β1.31 (公開版)</span></h1>
+  <h1 title="各階でどの地形・店・モンスターハウスが出るかを調べるツール">シレン2 地形シミュレータ<span class="ver"> β1.32 (公開版)</span></h1>
   <button id="tabBtnProb" class="primary">フロアデータ</button>
   <button id="tabBtnMap">ミニマップ生成</button>
   <span id="romStatus" class="note" ></span>
@@ -2266,6 +2266,104 @@ function placeChamfer(g,rng){
   }
 }
 
+/* ==================== 迷路部屋 内部処理 (bit0x80) ======================
+   部屋を1つ選んで奇数サイズに整え、部屋の外周から内側へ「壁」を生やして迷路にする。
+   ★掘り終わったあと 内部処理 で **部屋レコードごと配列から削除**し、
+     後ろの部屋を1つずつ前へ詰め、詰めた部屋のタイル下位ニブル(部屋番号)を振り直す。
+     ここを実装していなかったため、迷路が出るフロアでは部屋数が1多いまま残り、
+     以降の壊れない壁のリング抽選と階段の面積按分が全部ずれていた。
+   ------------------------------------------------------------------------
+   内部処理(掘る本体):
+     ① 種(スタック)を作る。部屋の外周1マス外を、上下は x=l+1,l+3,… 左右は y=t+1,t+3,…
+        の飛び飛びで見て、**ドア(0x800)でないマスだけ**積む。101本以上なら掘らずに戻る
+     ② スタックが空になるまで: ランダムに1本取り出して(末尾と入れ替えて取り出す)、
+        そこから伸ばせなくなるまで伸ばす。1歩ごとに u(23) で4方向の並び順を1つ選び、
+        **2マス先が部屋床(0x1000)かつ矩形の中**なら、そこと中点を壁(0x4000)にして進み、
+        新しい位置をスタックに積む。4方向とも駄目なら次を取り出す
+     ③ 最後に矩形内で部屋床のまま残ったマスから 0x100F を落とす(=部屋でなく通路になる)
+   ======================================================================== */
+const MAZE_DX=[2,0,-2,0], MAZE_DY=[0,2,0,-2];       // 内部データ / 内部データ
+// 内部データ: {0,1,2,3} の24通りの並び(辞書順)
+const MAZE_PERM=(()=>{
+  const out=[],a=[0,1,2,3];
+  const rec=(pre,rest)=>{ if(!rest.length){out.push(pre);return;}
+    for(let i=0;i<rest.length;i++)rec(pre.concat(rest[i]),rest.filter((_,j)=>j!==i)); };
+  rec([],a); return out;
+})();
+function carveMazeRoom(g,rng,rec){
+  const X=[],Y=[];
+  const push=(x,y)=>{X.push(x);Y.push(y);};
+  for(let x=rec.l+1;x<=rec.r-1;x+=2){
+    if(!(mGet(g.m,x,rec.t-1)&B_DOOR))push(x,rec.t-1);
+    if(!(mGet(g.m,x,rec.b+1)&B_DOOR))push(x,rec.b+1);
+  }
+  for(let y=rec.t+1;y<=rec.b-1;y+=2){
+    if(!(mGet(g.m,rec.l-1,y)&B_DOOR))push(rec.l-1,y);
+    if(!(mGet(g.m,rec.r+1,y)&B_DOOR))push(rec.r+1,y);
+  }
+  if(X.length>100)return false;              // 乱数も掘りも一切なしで戻る
+  let n=X.length;
+  while(n>0){
+    n--;
+    const idx=n?rng.u((n-1)&0xFF):0;
+    let cx=X[idx],cy=Y[idx];
+    X[idx]=X[n];Y[idx]=Y[n];
+    for(;;){
+      const perm=MAZE_PERM[rng.u(23)];
+      let moved=false;
+      for(let k=0;k<4;k++){
+        const d=perm[k], nx=cx+MAZE_DX[d], ny=cy+MAZE_DY[d];
+        if(!(mGet(g.m,nx,ny)&B_ROOM))continue;
+        if(nx<rec.l||nx>rec.r||ny<rec.t||ny>rec.b)continue;   // 内部処理
+        mSet(g.m,(cx+nx)>>1,(cy+ny)>>1,B_WALL);
+        cx=nx; cy=ny;
+        mSet(g.m,cx,cy,B_WALL);
+        X[n]=cx; Y[n]=cy; n++;
+        moved=true; break;
+      }
+      if(!moved)break;
+    }
+  }
+  for(let y=rec.t;y<=rec.b;y++)for(let x=rec.l;x<=rec.r;x++)
+    if(mGet(g.m,x,y)&B_ROOM)g.m[MI(x,y)]&=~0x100F;
+  return true;
+}
+/* 内部処理: 部屋レコード idx を配列から削除して後ろを詰め、
+   詰まった部屋のタイルの下位ニブル(部屋番号)を新しい番号に書き直す。 */
+function removeRoom(g,idx){
+  for(let i=idx+1;i<g.rooms.length;i++){
+    const r=g.rooms[i]; if(!r)continue;
+    const ni=(i-1)&0xF;
+    for(let y=r.t;y<=r.b;y++)for(let x=r.l;x<=r.r;x++)
+      if(inMesh(x,y)){const p=MI(x,y);g.m[p]=(g.m[p]&0xFFF0)|ni;}
+  }
+  g.rooms.splice(idx,1);
+  if(g.roomUsed)g.roomUsed.splice(idx,1);
+}
+function placeMaze(g,rng){
+  let idx=-1,rec=null;
+  for(let tries=99;tries>=0;tries--){
+    const i=rng.u((g.rooms.length-1)&0xFF);
+    const r=g.rooms[i];
+    if(!r||g.roomUsed[i])continue;
+    const w=r.r-r.l+1, h=r.b-r.t+1;
+    if(w>=21||h>=21)continue;                       // 21マス以上は迷路にしない
+    if((w&1)===0&&!growRoom(g,rng,r,false))continue; // 偶数幅は横に1マス広げる
+    if((h&1)===0&&!growRoom(g,rng,r,true))continue;  // 偶数高さは縦に1マス広げる
+    g.roomUsed[i]=1; idx=i; rec=r; break;
+  }
+  if(idx<0)return;
+  g.mazeRect={t:rec.t,l:rec.l,b:rec.b,r:rec.r};      // ctx+0x9BC = シレンの開始矩形
+  carveMazeRoom(g,rng,rec);
+  /* 迷路化で塞がったドアのビットを落とす(内側が部屋床でなくなったもの)。
+     掘れなかった場合も含め、部屋レコードの削除は必ず行う。 */
+  for(const d of roomDoors(g,rec)){
+    const[dy,dx]=DIR8[SIDEDIR[d.side]];
+    if(!(mGet(g.m,d.x-dx,d.y-dy)&B_ROOM))mAndN(g.m,d.x,d.y,B_DOOR);
+  }
+  removeRoom(g,idx);
+}
+
 /* ==================== 壊れない壁 内部処理 (bit0x800) ====================
    実体は2要素(ゲーム2F/seed 380601 の92タイルで検証済み・CONFIRMED):
    (A) 内部処理 = 有効域の縁2点からマップ中心(27,38)へ向かう**折れ線バリア2本**
@@ -2812,6 +2910,7 @@ function placeSpecialTerrain(g,a,s,rng){
   if(has("柱"))placePillars(g,rng);
   if(has("池"))placePond(g,rng,waterBit);
   if(has("氷部屋")&&s.ice)placeIceRoom(g,rng);
+  if(has("迷路"))placeMaze(g,rng);          // BDAEC(氷部屋の後・壊れない壁の直前)
   if(has("壁"))placeHardWall(g,rng);        // BF6F4(迷路の後・階段の直前)
   placeStairs(g,rng,a,s);                  // BF738(チェーン最後・常に実行)
 }
@@ -3009,9 +3108,15 @@ function applySpecials(lay,a,s,rnd){
   if(hits.includes("店")&&g&&g.shopRooms){
     g.shopRooms.forEach((idx,k)=>{const r=roomAt(idx); if(r)r.special.push(k===0?"店":"店2");});
   }
-  if(hits.includes("迷路")){
-    const r=pickRoom(lay,rnd,5,5,true);
-    if(r){const st=carveMaze(t,r,rnd);if(st){r.special.push("迷路");mazeStart=st;}}
+  /* 迷路は placeSpecialTerrain(内部処理 準拠)がメッシュ上で処理済み。
+     旧・レイアウト側の carveMaze は別の部屋を勝手に迷路にしてしまうので撤去した。
+     シレンの開始矩形だけゲームどおり ctx+0x9BC(=g.mazeRect)から引く。 */
+  if(hits.includes("迷路")&&g&&g.mazeRect){
+    const mr=g.mazeRect;
+    for(let y=mr.t;y<=mr.b&&!mazeStart;y++)for(let x=mr.l;x<=mr.r;x++){
+      const o=t[TI(x-OFS,y-OFS)];
+      if(o===T_CORR||o===T_ROOM){mazeStart={x:x-OFS,y:y-OFS};break;}
+    }
   }
   if(hits.includes("埋蔵金")){
     for(let tr=0;tr<40;tr++){

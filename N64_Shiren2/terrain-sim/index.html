@@ -234,6 +234,11 @@ const WIDTH2_TYPES=[0,13]; // 幅2通路ビット0x400(幅==2で確定)
 // ctx+0x958 の「常時」ビット0x1000(=面取り)を立てる部屋タイプ。内部処理 の
 // ジャンプテーブルで type0→BAC9C / type13→BAE2C の2分岐だけがこのビットを立てる。
 const ALWAYS_TYPES=[0,13];
+/* MHでモンスターを1体作るときの、種族抽選のあとの消費。
+   r=raw8(初期向き 内部処理) / p=pct / u=u16
+   種族別コンストラクタ 内部処理 の分。テーマの有無に関わらず通る。 */
+let MH_MON_SPEC="r";
+let MH_FORCE_DRAWS=null;
 const MH_THEMES=["通常","どろぼう","ドレイン","ゴースト","パワー","一ツ目","水中","おしうり","投げ物","マジック"];
 const SHOP_CATS=["通常","武器","盾","矢","草","おにぎり","巻物","杖","腕輪","壺"];
 const FLOOR_NAMES={0x00:"ナタネ村",0x01:"シュテン山道",0x02:"テシロギ洞窟",0x03:"センジン滝の裏穴",0x04:"新緑の森",0x05:"せせらぎ渓谷",0x06:"山中の洞窟",0x07:"シュテン山 中腹",0x08:"巨木の森",0x09:"奈落山峡",0x0A:"シュテン山 頂上",0x0B:"清流の洞窟",0x0C:"ドロロヶ浦",0x0D:"鍾乳石の泉",0x0E:"静かな岩屋",0x0F:"ヒズメ岩壁",0x10:"神霊の樹海",0x11:"幻影深山",0x12:"源流の魔窟",0x13:"滝壺深部",0x14:"渓流の岩場",0x15:"暗夜空洞",0x16:"大竹ヶ原",0x17:"断崖の風穴",0x18:"古都の遺跡",0x19:"底冷えの岩窟",0x1A:"白銀霊峰",0x1B:"女王グモの巣",0x1C:"竹林原野",0x1D:"さびれた坑道",0x1E:"無尽蔵の滝",0x1F:"鍾乳洞の底",0x20:"群青の洞穴",0x21:"流転の石窟",0x22:"大峡谷",0x23:"小さな谷",0x24:"鬼ヶ島",0x25:"中腹の井戸",0x26:"神社の隠し穴",0x27:"あかずの間",0x28:"最果てへの道",0x29:"黄金の間",0x2A:"けいこ場",0x2B:"鬼の楽園",0x2C:"鬼の楽園",0x2D:"鬼の楽園",0x2E:"鬼の楽園",0x2F:"鬼の楽園",0x30:"鬼の楽園"};
@@ -283,7 +288,7 @@ function initDefault(){
     document.getElementById("romStatus").textContent="データを読み込めませんでした";
     return;
   }
-  const r=new Uint8Array(0x1C0000);
+  const r=new Uint8Array(0x1C8000);   // フロアデータ領域の末尾(0x1C6CB0)まで入る大きさ
   for(const[addr,b64]of DEFAULT_ROM_RANGES){
     const bin=atob(b64);
     for(let i=0;i<bin.length;i++)r[addr+i]=bin.charCodeAt(i);
@@ -397,6 +402,16 @@ function readCatTable(a){
   }
   return out;
 }
+// モンスター湧き表 (レコード+0x08 の ptr表を fi で引く)。26件×4B {u8 id, u8 lv, u16 weight}
+function spawnTable(rec,fi){
+  const p=rd32(rec.spawn+fi*4); if(!p)return[];
+  const a=segAddr(p), out=[];
+  for(let i=0;i<26;i++){
+    const w=rd16(a+i*4+2); if(!w)break;
+    out.push({id:rd8(a+i*4),lv:rd8(a+i*4+1),w});
+  }
+  return out;
+}
 // フロア落ちアイテム表 / ワナ表 (index = 基本設定+4 の fi)
 function floorItemTable(rec,fi){ const p=rd32(rec.item+fi*4); return p?readCatTable(segAddr(p)):[]; }
 function floorTrapTable(rec,fi){ const p=rd32(rec.trap+fi*4); return p?readPairList(segAddr(p)):[]; }
@@ -455,6 +470,7 @@ function analyzeFloor(row,ov){
     res.itemTbl=floorItemTable(row.rec,row.fdIdx);         // ダンジョン別(内部データ系)
     res.trapTbl=floorTrapTable(row.rec,row.fdIdx);
     res.ndooba=Array.from(rom.slice(NDOOBA_TABLE+fd[7]*3,NDOOBA_TABLE+fd[7]*3+3));
+    res.spawnTbl=spawnTable(row.rec,row.fdIdx);            // MHテーマ0/8のモンスター抽選
   }
   /* ★アイテム表の有無に関係なく必要。黄金の階段の出現判定がこれを使うので、
      ここを条件の中に入れるとアイテム表が無いとき黄金の階段が一切出なくなる。 */
@@ -2536,20 +2552,43 @@ function placeMHRoom(g,rng,a,s){
   }
   const nMon=rng.uni(rd8(0x129961),rd8(0x12995F));   // uni(6,20)
   const nItem=rng.uni(rd8(0x129965),rd8(0x129963));  // uni(4,25)
+  /* 診断用: MH_FORCE_DRAWS を入れると中身生成の代わりにその本数だけ空引きする。
+     地形が一致しているフロアなら、階段の位置から必要な本数を逆算できる。 */
+  if(typeof MH_FORCE_DRAWS==="number"){
+    for(let i=0;i<MH_FORCE_DRAWS;i++)rng.raw8();
+    return idx;
+  }
   if(!st)return idx;                                  // アイテム表が無いときは中身を作らない
   const tbl=mhMonTable(theme);
   /* モンスター: 1体につき最大10回。1回=種族抽選(表なら u8+uni8 の2本)+座標 uni32×2 */
   for(let i=0;i<nMon;i++){
     for(let t=0;t<10;t++){
+      /* --- 種族の抽選 (内部処理) --- */
       if(tbl){
-        rng.u((tbl.length-1)&0xFF);      // 表から1体
-        rng.uni(1,1);                    // 内部処理 由来のレベル抽選(範囲は種族依存)
+        /* テーマ1-7,9(特殊MH)はテーマ専用の表から引く。
+           表の件数で u8(件数-1) を1本 → そのIDの最大レベルで uni(1,最大レベル) を1本。
+           最大レベルはモンスター図鑑側の表なので、ここでは1で近似している
+           (最大レベルが3のときだけ棄却が入るので、まれに1本ずれる)。 */
+        rng.u((tbl.length-1)&0xFF);
+        rng.uni(1,1);
       }else{
-        /* ★未解読: テーマ0(通常)/8 は 内部処理(通常湧きテーブル)→内部処理
-           を通る。湧き表の重み抽選(u16 を最大10回)+アイテム持ちの生成が入るので
-           ここは近似。**テーマ0/8 のMHが出るフロアは以降の乱数がずれる**。 */
-        rng.u16(0);
-        g.mhApprox=1;
+        /* テーマ0(通常)/8(投げ物)は通常の湧きテーブルから引く
+           (内部処理 → 内部処理 → 内部処理)。
+           重み合計から u16(合計-1) を1本。除外条件は通常成立しないのでリトライ無し。
+           そのあと 内部処理 が所持アイテム判定の pct を1本引く
+           (pct は確率値によらず消費本数が同じなので、モンスター図鑑の表は不要)。
+           ★ゲームの 内部処理 には「重み合計が0なら乱数0本で戻る」ガードがあるが、
+             ROMを書き換えた環境でもモンスターは湧いているため、
+             **沸く前提で常に消費する**。 */
+        const sp=a.spawnTbl||[];
+        let sum=0; for(const e of sp)sum+=e.w;
+        rng.u16((sum-1)&0xFFFF);
+        rng.u(99);
+      }
+      /* --- 生成 (内部処理) --- 種族別コンストラクタが初期向きの raw8 を引く。
+         テーマの有無に関わらず通る経路なので、両方に効かせる。 */
+      for(const c of MH_MON_SPEC){
+        if(c==="r")rng.raw8(); else if(c==="p")rng.u(99); else if(c==="u")rng.u16(0);
       }
       const p=randInRect(rng,rec);
       if(placeableAt(g,p.x,p.y)){markOccupied(g,p.x,p.y);break;}
@@ -3080,8 +3119,8 @@ function renderMapTab(){
   fSel.onchange=()=>{mapSel.floor=+fSel.value;saveMapSel();renderMapTab();};
   const inSeed=el("input",{type:"number",min:0,max:SEED6_MAX,value:mapSel.seed,style:"width:110px"});
   r1.append(dSel,fSel," シード:",inSeed,
-    el("button",{class:"primary",onclick:()=>{mapSel.seed=(+inSeed.value>>>0)||1;saveMapSel();renderMapTab();}},"生成"),
-    el("button",{onclick:()=>{mapSel.seed=rand6();saveMapSel();renderMapTab();}},"ランダムシードで生成"),
+    el("button",{onclick:()=>{mapSel.seed=(+inSeed.value>>>0)||1;saveMapSel();renderMapTab();}},"生成"),
+    el("button",{class:"primary",onclick:()=>{mapSel.seed=rand6();saveMapSel();renderMapTab();}},"ランダムシードで生成"),
     el("span",{class:"note",title:"シードは0〜999999の範囲で指定してください。7桁以上でも動作はします。"},
       "※6桁(0〜999999)"),
     el("span",{class:"note",title:"部屋・通路の生成、特殊地形、店の中身、階段の配置まで再現しています。シレンの開始位置とフロアのアイテム/罠はまだ未対応です。"},

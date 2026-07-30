@@ -3071,11 +3071,28 @@ const SEED6_MAX=999999;
 const rand6=()=>Math.floor(Math.random()*(SEED6_MAX+1));
 const MAPSEL_KEY="shiren2-terrain-sim.mapSel";
 const mapSel=(()=>{
-  const def={dgn:null,floor:null,seed:12345};
+  const def={dgn:null,floor:null,seed:12345,hist:[]};
   try{const o=JSON.parse(localStorage.getItem(MAPSEL_KEY)||"null");
-    if(o&&typeof o.seed==="number")return{dgn:o.dgn,floor:o.floor,seed:o.seed};}catch(e){}
+    if(o&&typeof o.seed==="number")
+      return{dgn:o.dgn,floor:o.floor,seed:o.seed,hist:Array.isArray(o.hist)?o.hist:[]};}catch(e){}
   return def;
 })();
+const SEED_HIST_MAX=50;
+/* シードを変える唯一の入口。前のシードを履歴に積んでおき、
+   「← 前のシード」で戻れるようにする(ランダム生成で気に入ったマップを
+   通り過ぎてしまう場面があるため)。 */
+function setMapSeed(v){
+  v=(v>>>0)||1;
+  if(v!==mapSel.seed){
+    mapSel.hist.push(mapSel.seed);
+    if(mapSel.hist.length>SEED_HIST_MAX)mapSel.hist.shift();
+  }
+  mapSel.seed=v; saveMapSel(); renderMapTab();
+}
+function prevMapSeed(){
+  if(!mapSel.hist.length)return;
+  mapSel.seed=mapSel.hist.pop(); saveMapSel(); renderMapTab();
+}
 function saveMapSel(){
   try{localStorage.setItem(MAPSEL_KEY,JSON.stringify(mapSel));}catch(e){}
 }
@@ -3119,8 +3136,11 @@ function renderMapTab(){
   fSel.onchange=()=>{mapSel.floor=+fSel.value;saveMapSel();renderMapTab();};
   const inSeed=el("input",{type:"number",min:0,max:SEED6_MAX,value:mapSel.seed,style:"width:110px"});
   r1.append(dSel,fSel," シード:",inSeed,
-    el("button",{onclick:()=>{mapSel.seed=(+inSeed.value>>>0)||1;saveMapSel();renderMapTab();}},"生成"),
-    el("button",{class:"primary",onclick:()=>{mapSel.seed=rand6();saveMapSel();renderMapTab();}},"ランダムシードで生成"),
+    el("button",{onclick:()=>setMapSeed(+inSeed.value)},"生成"),
+    el("button",{class:"primary",onclick:()=>setMapSeed(rand6())},"ランダムシードで生成"),
+    el("button",Object.assign({onclick:prevMapSeed,
+        title:mapSel.hist.length?("1つ前のシード "+mapSel.hist[mapSel.hist.length-1]+" に戻る(履歴 "+mapSel.hist.length+" 件)"):"戻れる履歴がありません"},
+      mapSel.hist.length?{}:{disabled:"disabled"}),"← 前のシード"),
     el("span",{class:"note",title:"シードは0〜999999の範囲で指定してください。7桁以上でも動作はします。"},
       "※6桁(0〜999999)"),
     el("span",{class:"note",title:"部屋・通路の生成、特殊地形、店の中身、階段の配置まで再現しています。シレンの開始位置とフロアのアイテム/罠はまだ未対応です。"},

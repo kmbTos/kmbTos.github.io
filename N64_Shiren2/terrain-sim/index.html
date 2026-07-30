@@ -657,7 +657,12 @@ function renderDungeon(){
     const tr=el("tr",{class:"click"+(i===sel.floor?" sel":"")+((row.town||row.shuffle)?" off":"")});
     tr.onclick=()=>{sel.floor=i;whatif=null;renderDungeon();renderDetail();};
     const fname=FLOOR_NAMES[row.bd[1]]||hex(row.bd[1]);
-    tr.append(el("td",null,row.bd[0]||"—"));
+    /* 黄金の階段が出る階は階数を黄色にする(ミニマップの「階」マークと同じ色)。 */
+    const gsDgn=DGN_NO_BY_BASIC[row.bdAddr!=null?row.bdAddr:-1];
+    const gsRate=goldenStairRate(gsDgn!=null?gsDgn:(row.rec?row.rec.idx:-1),row.bd[0]|0);
+    tr.append(gsRate>=0
+      ? el("td",{style:"color:#e8d33d;font-weight:600",title:`黄金の階段 ${gsRate}%`},row.bd[0]||"—")
+      : el("td",null,row.bd[0]||"—"));
     const tags=el("td",{class:"lbl"},fname+" ");
     if(row.shuffle)tags.append(el("span",{class:"tag shuffle",title:"フ型0x40ビット/階型がシャッフルID→固定マップ系。ランダム生成の対象外"},"固定"));
     if(row.town)tags.append(el("span",{class:"tag town",title:"村/休憩/イベントフロア"},"村"));
@@ -2728,15 +2733,18 @@ function stairPlaceable(g,x,y){
    表 内部データ(内部データ) 8件×8B: +0/+1=出現階層の下限/上限, +5=ダンジョン番号, +6=確率%。
    i=7→0 の順に走査し、最初に一致した行の確率で pct。当たれば 0xCF を生成(=さらに pct 1本)。
    一致しなければ **乱数0本**。 */
-function goldenStairGate(rng,dgnNo,floor){
-  let rate=-1;
+function goldenStairRate(dgnNo,floor){    // 該当なしは -1
   for(let i=7;i>=0;i--){
     const e=0x129D10+i*8;
     if(rd8(e+5)!==dgnNo)continue;
     if(floor<rd8(e))continue;
     if(rd8(e+1)<floor)continue;
-    rate=rd8(e+6); break;
+    return rd8(e+6);
   }
+  return -1;
+}
+function goldenStairGate(rng,dgnNo,floor){
+  const rate=goldenStairRate(dgnNo,floor);
   if(rate<0)return false;
   if(!rng.pct(rate))return false;
   rng.u(99);                      // 内部処理(0xCF) → 内部処理 の pct

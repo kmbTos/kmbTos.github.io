@@ -3166,27 +3166,35 @@ const SEED6_MAX=999999;
 const rand6=()=>Math.floor(Math.random()*(SEED6_MAX+1));
 const MAPSEL_KEY="shiren2-terrain-sim.mapSel";
 const mapSel=(()=>{
-  const def={dgn:null,floor:null,seed:12345,hist:[]};
+  const def={dgn:null,floor:null,seed:12345,base:12345,hist:[]};
   try{const o=JSON.parse(localStorage.getItem(MAPSEL_KEY)||"null");
     if(o&&typeof o.seed==="number")
-      return{dgn:o.dgn,floor:o.floor,seed:o.seed,hist:Array.isArray(o.hist)?o.hist:[]};}catch(e){}
+      return{dgn:o.dgn,floor:o.floor,seed:o.seed,
+             base:typeof o.base==="number"?o.base:o.seed,
+             hist:Array.isArray(o.hist)?o.hist:[]};}catch(e){}
   return def;
 })();
 const SEED_HIST_MAX=50;
-/* シードを変える唯一の入口。前のシードを履歴に積んでおき、
-   「← 前のシード」で戻れるようにする(ランダム生成で気に入ったマップを
-   通り過ぎてしまう場面があるため)。 */
+/* seed  = 上の大きいマップに出ているシード
+   base  = 下の連続生成12枚の起点。**「生成」系のボタンを押したときだけ**動かす。
+           連続生成のサムネをクリックしても base は変えないので、12枚は並んだまま
+           上のマップだけが切り替わる(見比べている途中で並びが崩れないように)。 */
 function setMapSeed(v){
   v=(v>>>0)||1;
   if(v!==mapSel.seed){
     mapSel.hist.push(mapSel.seed);
     if(mapSel.hist.length>SEED_HIST_MAX)mapSel.hist.shift();
   }
-  mapSel.seed=v; saveMapSel(); renderMapTab();
+  mapSel.seed=v; mapSel.base=v; saveMapSel(); renderMapTab();
 }
 function prevMapSeed(){
   if(!mapSel.hist.length)return;
-  mapSel.seed=mapSel.hist.pop(); saveMapSel(); renderMapTab();
+  mapSel.seed=mapSel.hist.pop(); mapSel.base=mapSel.seed; saveMapSel(); renderMapTab();
+}
+// 連続生成 i枚目のシード。0枚目は base 自身 = 上の大きいマップと同じ。
+function multiSeed(base,i){
+  if(i===0)return base;
+  return (base<=SEED6_MAX)?((base+i*7919)%(SEED6_MAX+1)):((base+i*7919)>>>0);
 }
 function saveMapSel(){
   try{localStorage.setItem(MAPSEL_KEY,JSON.stringify(mapSel));}catch(e){}
@@ -3269,15 +3277,18 @@ function renderMapTab(){
 
   // 連続12枚
   const multi=el("div",{class:"card"},el("h3",null,"連続生成 ×12 ",
-    el("span",{class:"note"},"(クリックで拡大表示=そのシードをメインに)")));
+    el("span",{class:"note"},"(1枚目=上のマップ。クリックで上に拡大表示。並びが変わるのは「生成」を押したときだけ)")));
   const grid=el("div",{style:"display:flex;flex-wrap:wrap;gap:8px"});
   for(let i=0;i<12;i++){
     /* ベースシードが6桁範囲なら派生シードも6桁に収める(ゲームにそのまま打ち込めるように) */
-    const sd=(mapSel.seed<=SEED6_MAX)?((mapSel.seed+i*7919+1)%(SEED6_MAX+1)):((mapSel.seed+i*7919+1)>>>0);
+    const sd=multiSeed(mapSel.base,i);
     const tri=genTrial(row,sd);
-    const c2=el("canvas",{style:"image-rendering:pixelated;border:1px solid var(--line);border-radius:3px;cursor:pointer"});
+    const cur=(sd===mapSel.seed);
+    const c2=el("canvas",{style:"image-rendering:pixelated;border-radius:3px;cursor:pointer;border:2px solid "
+      +(cur?"var(--acc)":"transparent")});
     drawLayout(c2,tri.lay,4,tri.s);
-    const cap=el("div",{class:"small",style:"max-width:224px;color:var(--dim)"},trialCaption(tri.s));
+    const cap=el("div",{class:"small",style:"max-width:224px;color:"+(cur?"var(--acc)":"var(--dim)")},
+      String(sd)+" "+trialCaption(tri.s));
     const cell=el("div",null,c2,cap);
     c2.onclick=()=>{mapSel.seed=sd;saveMapSel();renderMapTab();};
     grid.append(cell);

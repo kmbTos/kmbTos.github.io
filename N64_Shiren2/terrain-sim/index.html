@@ -67,7 +67,7 @@ td.heat{min-width:44px}
 </head>
 <body>
 <header>
-  <h1 title="各階でどの地形・店・モンスターハウスが出るかを調べるツール">シレン2 地形シミュレータ<span class="ver"> β1.20 (公開版)</span></h1>
+  <h1 title="各階でどの地形・店・モンスターハウスが出るかを調べるツール">シレン2 地形シミュレータ<span class="ver"> β1.31 (公開版)</span></h1>
   <button id="tabBtnProb" class="primary">フロアデータ</button>
   <button id="tabBtnMap">ミニマップ生成</button>
   <span id="romStatus" class="note" ></span>
@@ -237,8 +237,18 @@ const ALWAYS_TYPES=[0,13];
 /* MHでモンスターを1体作るときの、種族抽選のあとの消費。
    r=raw8(初期向き 内部処理) / p=pct / u=u16
    種族別コンストラクタ 内部処理 の分。テーマの有無に関わらず通る。 */
-let MH_MON_SPEC="r";
+/* --- ゲーム照合用のつまみ(通常は触らない) ---------------------------------
+   MH_FORCE_DRAWS / ISLAND_FORCE_DRAWS に数値を入れると、モンスターハウス/島の
+   「中身生成」を、その本数ぶんの空引きに置き換える。地形が一致しているフロアなら
+   階段の位置から必要な本数を逆算できる(このやり方で島の中身を確定させた)。 */
 let MH_FORCE_DRAWS=null;
+let ISLAND_FORCE_DRAWS=null;
+/* 島の中身を撒く範囲と、1マスごとの追加判定。
+   ★ゲーム(シード213759/6F)との照合で確定した:
+     ・撒く範囲は「水のリングを含む矩形全体」= ctx+0x9AC の矩形そのもの。
+       内側だけだと本数が足りない(リング上のマスにも置きに行く。
+       ループは地形を見ず 内部処理 のアイテム占有しか見ないため)
+     ・1マス置くごとに 内部処理 が pct を1本引く */
 const MH_THEMES=["通常","どろぼう","ドレイン","ゴースト","パワー","一ツ目","水中","おしうり","投げ物","マジック"];
 const SHOP_CATS=["通常","武器","盾","矢","草","おにぎり","巻物","杖","腕輪","壺"];
 const FLOOR_NAMES={0x00:"ナタネ村",0x01:"シュテン山道",0x02:"テシロギ洞窟",0x03:"センジン滝の裏穴",0x04:"新緑の森",0x05:"せせらぎ渓谷",0x06:"山中の洞窟",0x07:"シュテン山 中腹",0x08:"巨木の森",0x09:"奈落山峡",0x0A:"シュテン山 頂上",0x0B:"清流の洞窟",0x0C:"ドロロヶ浦",0x0D:"鍾乳石の泉",0x0E:"静かな岩屋",0x0F:"ヒズメ岩壁",0x10:"神霊の樹海",0x11:"幻影深山",0x12:"源流の魔窟",0x13:"滝壺深部",0x14:"渓流の岩場",0x15:"暗夜空洞",0x16:"大竹ヶ原",0x17:"断崖の風穴",0x18:"古都の遺跡",0x19:"底冷えの岩窟",0x1A:"白銀霊峰",0x1B:"女王グモの巣",0x1C:"竹林原野",0x1D:"さびれた坑道",0x1E:"無尽蔵の滝",0x1F:"鍾乳洞の底",0x20:"群青の洞穴",0x21:"流転の石窟",0x22:"大峡谷",0x23:"小さな谷",0x24:"鬼ヶ島",0x25:"中腹の井戸",0x26:"神社の隠し穴",0x27:"あかずの間",0x28:"最果てへの道",0x29:"黄金の間",0x2A:"けいこ場",0x2B:"鬼の楽園",0x2C:"鬼の楽園",0x2D:"鬼の楽園",0x2E:"鬼の楽園",0x2F:"鬼の楽園",0x30:"鬼の楽園"};
@@ -1709,7 +1719,28 @@ function ringEach(r,fn){
 }
 // 内部処理: 島 (bit0x8)。部屋内に島矩形を残し、その外周1マスを水で囲う
 function placeIsland(g,rng,waterBit,a){
-  const p=pickRoomReal(g,rng,(rec,w,h)=>w>=6&&h>=6);
+  /* 部屋の選び方(内部処理 前半)。最大100回:
+       idx = u(部屋数-1) → 未使用でなければ次へ
+       幅/高さを取り、**ちょうど 5×5 のときだけ** 1マス広げようとする
+       (内部処理=横 / 内部処理=縦。広がれば 6 として扱う。
+        広げた結果は部屋レコードに残るので、不採用になっても形は変わったまま)
+       幅<6 または 高さ<6 なら次へ。両方6以上なら確保。
+     ★この「5×5のときだけ広げる」を落とすと、部屋の形も乱数もずれる。 */
+  let p=null;
+  for(let tries=99;tries>=0;tries--){
+    const idx=rng.u((g.rooms.length-1)&0xFF);
+    const rec0=g.rooms[idx];
+    if(!rec0||g.roomUsed[idx])continue;
+    let w=rec0.r-rec0.l+1, h=rec0.b-rec0.t+1;
+    if(w===5&&h===w){
+      if(growRoom(g,rng,rec0,false))w=6;   // 横に広げる
+      if(growRoom(g,rng,rec0,true))h=6;    // 縦に広げる
+    }
+    if(w<6||h<6)continue;
+    g.roomUsed[idx]=1;
+    p={idx,rec:rec0,w:rec0.r-rec0.l+1,h:rec0.b-rec0.t+1};
+    break;
+  }
   if(!p)return;
   const{rec,w,h}=p;
   const capX=Math.min(w-4,5);
@@ -1725,8 +1756,16 @@ function placeIsland(g,rng,waterBit,a){
   ringEach({t:it,l:il,b:ib,r:ir},(x,y)=>mOr(g.m,x,y,waterBit));
   g.island={t:it,l:il,b:ib,r:ir};
   /* ctx+0x9AC = 水のリングの内側(=歩ける島本体)。階段はここを避ける。 */
-  const inner={t:it+1,l:il+1,b:ib-1,r:ir-1};
+  /* ctx+0x9AC の矩形。水のリングを含む矩形そのもので、
+     「島の主のアイテムを置く座標」も「中身を撒くループ」も同じこの矩形を使う。
+     ★内側(リングの1マス内)から引くと座標の抽選範囲が変わって本数がずれる。 */
+  const inner={t:it,l:il,b:ib,r:ir};
   g.islandInner=inner;
+  /* 診断用: ISLAND_FORCE_DRAWS を入れると中身生成の代わりにその本数だけ空引きする。 */
+  if(typeof ISLAND_FORCE_DRAWS==="number"){
+    for(let i=0;i<ISLAND_FORCE_DRAWS;i++)rng.raw8();
+    return;
+  }
   if(!g.st)return;                       // アイテム表が無いときは中身を作らない
   /* ① 島の主のアイテム(ID 0xD6, 内部処理)を1個。位置は 内部処理。 */
   const p0=randInRect(rng,inner);        // uni32 ×2 (X→Yの順)
@@ -1734,12 +1773,29 @@ function placeIsland(g,rng,waterBit,a){
   if(p0.x>=inner.l&&p0.x<=inner.r&&p0.y>=inner.t&&p0.y<=inner.b)markOccupied(g,p0.x,p0.y);
   /* ② 内側の全マスを走査。既に物があるマスは飛ばし、
         pct(内部データ=5) ならアイテム(床アイテム表から cat=0)、外れならギタン 0xCC。 */
-  const pItem=rd8(0x129AF7);
-  for(let y=inner.t;y<=inner.b;y++)for(let x=inner.l;x<=inner.r;x++){
+  /* 島の1マスごとの「アイテムを置く確率%」。内部データ = 内部データ(=50%)。
+     ★VRAM→ROM は -0x8002CFC0。0x129AF7 と誤って別の値(5)を読んでいて、
+       アイテムが1つも出ず本数がずれていた。 */
+  const pItem=rd8(0x129B17);
+  const box=inner;
+  for(let y=box.t;y<=box.b;y++)for(let x=box.l;x<=box.r;x++){
     if(occupied(g,x,y))continue;
     markOccupied(g,x,y);
-    if(rng.pct(pItem))makeItem(rng,g.st,a.itemTbl,0);
-    else initItem(rng,g.st,0xCC);        // ギタン: pct + uni(0,200)
+    const id=rng.pct(pItem)?makeItem(rng,g.st,a.itemTbl,0)
+                           :initItem(rng,g.st,0xCC);   // ギタン: pct + uni(0,200)
+    /* 内部処理。**置いた物のクラスが 0x0A のときだけ** pct を1本引き、
+       外れるとそのオブジェクトは破棄される(=そのマスは空になる)。
+       ギタン(クラス14)など他のクラスでは1本も引かない。 */
+    /* 内部処理: 置いた物のクラスが 0x0A のときだけ動く。
+       pct(100 - 内部データ[ダンジョン番号]) に当たると、そのアイテムは
+       内部処理 でモンスターに変わり、内部処理 で仕上げる。
+       → 追加で2本消費し、**アイテム欄からは消える**(ゲームで空きマスに見える)。
+       外れた場合はオブジェクトが破棄されるだけで追加消費なし。
+       ★シード213759の2F(24マス)と6F(15マス)で、置かれた物の並びが
+         それぞれ 24/24・15/15 で完全一致することを確認済み。 */
+    if(id&&itemClass(id)===10){
+      if(rng.pct(100-rd8(0x129CE0+(g.st.dgnNo|0)))){ rng.raw8(); rng.u(99); }
+    }
   }
 }
 /* ==================== 幅2通路 内部処理 (bit0x400) ====================
@@ -1771,33 +1827,52 @@ function roomDoors(g,rec){
   for(let x=rec.l;x<=rec.r;x++)     if(mGet(g.m,x,rec.b+1)&B_DOOR)out.push({x,y:rec.b+1,side:3});
   return out;
 }
-const solidTile=(g,x,y)=>(mGet(g.m,x,y)&0xE100)!==0;
-function solidCount4(g,x,y){
-  let n=0;
-  for(let d=0;d<7;d+=2){const[dy,dx]=DIR8[d];if(solidTile(g,x+dx,y+dy))n++;}
-  return n;
+// 通行可(&0xE100 が全部落ちている)。0xE100 = 範囲外|壁|水|0x100
+const passTile=(g,x,y)=>(mGet(g.m,x,y)&0xE100)===0;
+const passDir=(g,x,y,d)=>{const[dy,dx]=DIR8[d&7];return passTile(g,x+dx,y+dy);};
+/* ドアの外側 1,2 マスが「範囲内・部屋でない・ドアでない」ことを確かめる。
+   (asm 800BBDB0〜800BBE68 / 800BC1C0〜800BC278。部屋の直後にもう1つドアが
+   来るような短い接続は幅2化の対象外) */
+function doorRunwayOK(g,x,y,dir){
+  for(let dist=1;dist<=2;dist++){
+    const[dy,dx]=DIR8[dir&7], nx=x+dx*dist, ny=y+dy*dist;
+    if(!inMesh(nx,ny))return false;              // 内部処理
+    const v=mGet(g.m,nx,ny);
+    if(v&B_ROOM)return false;                    // 0x1000
+    if(v&B_DOOR)return false;                    // 0x800
+  }
+  return true;
 }
-/* ドアから通路をたどる。各マスで固い直交近傍が2でなければ null。
-   もう一方のドアに着いたら {path} を返す。path[i] = {x,y,dir(そこへ入ってきた向き)} */
+/* ドアから通路をたどる(asm .L800BBEB8 ループの逐語再現)。
+   ・毎回まず現在の向きへ1歩進む(通れるかは見ない)
+   ・ドアに着いたら成功
+   ・そのマスの直交4近傍のうち通行可がちょうど2でなければ失敗
+   ・前方が塞がっていれば左右どちらかへ曲がる(+2 を優先、次に +6)
+   ・現在の向きが初期の向きと180°、または最初に曲がった向きと180°になったら失敗
+   ・100歩で打ち切り
+   path[i] = {x,y,dir(そのマスへ入ってきた向き)} */
 function walkCorridor(g,d0){
-  let x=d0.x,y=d0.y,dir=SIDEDIR[d0.side];
+  const dir0=SIDEDIR[d0.side];
+  let x=d0.x,y=d0.y,dir=dir0,turned=0,fpDir=dir0;
   const path=[{x,y,dir}];
-  const seen=new Set([x+","+y]);
-  for(let step=0;step<100;step++){
-    let nd=-1;
-    for(const c of [dir,(dir+2)&7,(dir+6)&7]){
-      const[dy,dx]=DIR8[c], nx=x+dx, ny=y+dy;
-      if(seen.has(nx+","+ny))continue;
-      const v=mGet(g.m,nx,ny);
-      if(!(v&B_FLOOR)||(v&B_ROOM))continue;   // 通路かドアのみ辿る
-      nd=c;break;
-    }
-    if(nd<0)return null;
-    const[dy,dx]=DIR8[nd];
-    x+=dx;y+=dy;dir=nd;seen.add(x+","+y);
-    path.push({x,y,dir});
+  for(let n=100;n>0;n--){
+    const s4=dir&7;
+    const[dy,dx]=DIR8[s4]; x+=dx; y+=dy;
+    path.push({x,y,dir:s4});
     if(mGet(g.m,x,y)&B_DOOR)return{path};
-    if(solidCount4(g,x,y)!==2)return null;
+    let cnt=0;
+    for(let k=0;k<8;k+=2)if(passDir(g,x,y,s4+k))cnt++;
+    if(cnt!==2)return null;
+    if(!passDir(g,x,y,s4)){                       // 前方が塞がっている → 曲がる
+      let s1=dir;
+      if(passDir(g,x,y,s4+2))s1+=2;
+      if(passDir(g,x,y,(s1+6)&7))s1+=6;
+      s1&=7;
+      if(!turned){turned=1;fpDir=s1;}
+      dir=s1;
+    }
+    if(Math.abs((dir&7)-(dir0&7))===4)return null;
+    if(turned&&Math.abs((fpDir&7)-(dir&7))===4)return null;
   }
   return null;
 }
@@ -1805,15 +1880,17 @@ function walkCorridor(g,d0){
 function width2Qualifies(g,rec,d){
   if((rec.door||[0,0,0,0])[d.side]!==1)return null;
   if(d.x===rec.l||d.x===rec.r||d.y===rec.t||d.y===rec.b)return null;
+  if(!doorRunwayOK(g,d.x,d.y,SIDEDIR[d.side]))return null;
   const w=walkCorridor(g,d);
   if(!w)return null;
   const end=w.path[w.path.length-1];
   for(const r2 of g.rooms){
-    if(!r2||r2===rec)continue;
+    if(!r2)continue;
     for(const d2 of roomDoors(g,r2)){
       if(d2.x!==end.x||d2.y!==end.y)continue;
       if((r2.door||[0,0,0,0])[d2.side]!==1)return null;
       if(d2.x===r2.l||d2.x===r2.r||d2.y===r2.t||d2.y===r2.b)return null;
+      if(!doorRunwayOK(g,d2.x,d2.y,SIDEDIR[d2.side]))return null;
       return w;
     }
   }
@@ -2499,6 +2576,8 @@ function mhMonTable(t){
 }
 /* 内部処理: 矩形内のランダム座標。x→y の順に uni32 を2本引く。 */
 function randInRect(rng,r){
+  /* asm(800A3400〜)は 1回目を pt+4、2回目を pt+0 に入れる。座標構造体は {Y,X} 順
+     (pt+0=Y / pt+4=X)なので、**先に引くのが X**、次が Y。矩形も {y0,x0,y1,x1}。 */
   const x=rng.uni32(r.l,r.r), y=rng.uni32(r.t,r.b);
   return{x,y};
 }
@@ -2587,9 +2666,7 @@ function placeMHRoom(g,rng,a,s){
       }
       /* --- 生成 (内部処理) --- 種族別コンストラクタが初期向きの raw8 を引く。
          テーマの有無に関わらず通る経路なので、両方に効かせる。 */
-      for(const c of MH_MON_SPEC){
-        if(c==="r")rng.raw8(); else if(c==="p")rng.u(99); else if(c==="u")rng.u16(0);
-      }
+      rng.raw8();
       const p=randInRect(rng,rec);
       if(placeableAt(g,p.x,p.y)){markOccupied(g,p.x,p.y);break;}
     }
@@ -2705,9 +2782,19 @@ function placeSpecialTerrain(g,a,s,rng){
      ★1Fで面取りが誤発火して乱数がずれていた原因はこのゲート漏れだった。 */
   if(ALWAYS_TYPES.includes(s.t))placeChamfer(g,rng);
   if(s.width2)placeWidth2(g,rng);          // BC49C: 幅2通路(フロアデータ+4==2で確定)
-  // 内部処理: 水フロア(フロアデータ+0xC)。type1/2/3 と氷結時はスキップ。
-  //   判定成立で論理エリア全域を水にする(未実装)が、**乱数消費は常に再現する**。
-  if(!(s.t===1||s.t===2||s.t===3)&&!s.ice)rng.pct(a.fd[0x0C]);
+  /* 内部処理: 水フロア(フロアデータ+0xC)。部屋タイプ1/2/3(大部屋系)と氷結時はスキップ。
+     判定に当たると、論理全域 {10,10}-{43,65} の **壁のマスを丸ごと水(0x2000)に置き換える**
+     (内部処理 は OR ではなく直接代入)。部屋も通路もそのまま残るので、
+     見た目は「部屋と通路以外が全部水」になる。
+     ★これを地形に反映していなかったため、当たったフロアでは1400マス以上ずれ、
+       階段も水を避けられずに違う場所へ行っていた。 */
+  if(!(s.t===1||s.t===2||s.t===3)&&!s.ice){
+    if(rng.pct(a.fd[0x0C])){
+      for(let y=10;y<=43;y++)for(let x=10;x<=65;x++)
+        if(mGet(g.m,x,y)&B_WALL)mSet(g.m,x,y,B_WATER);
+      g.waterFloor=1;
+    }
+  }
   if(has("湖"))placeLake(g,rng,waterBit);
   if(has("水路"))placeWaterway(g,rng,waterBit);    // BE544(湖の直後・埋蔵金の直前)
   if(has("埋蔵金"))placeGoldRoom(g);               // BDD54(乱数0)

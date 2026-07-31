@@ -67,7 +67,7 @@ td.heat{min-width:44px}
 </head>
 <body>
 <header>
-  <h1 title="各階でどの地形・店・モンスターハウスが出るかを調べるツール">シレン2 地形シミュレータ<span class="ver"> β1.35 (公開版)</span></h1>
+  <h1 title="各階でどの地形・店・モンスターハウスが出るかを調べるツール">シレン2 地形シミュレータ<span class="ver"> β1.36 (公開版)</span></h1>
   <button id="tabBtnProb" class="primary">フロアデータ</button>
   <button id="tabBtnMap">ミニマップ生成</button>
   <span id="romStatus" class="note" ></span>
@@ -2139,19 +2139,18 @@ function placeLake(g,rng,waterBit){
   const r=rng.uni(7,0x10);
   const cx=rng.u((65-r-(10+r))&0xFF)+(10+r);   // 内部処理 は X が先
   const cy=rng.u((43-r-(10+r))&0xFF)+(10+r);
-  /* ★湖は「岩盤をくり抜いた水」であって、部屋や通路を水没させない。
-     ゲーム(最果て88F/seed 59252)の水タイルは生値 **0x2000**(床ビット0x200も部屋ビットも無し)で、
-     円の内側にある部屋(room1/4/6)と通路はそのまま床のまま残っていた。
-     旧実装は単に水ビットを OR していたため、
-       ・壁 0x4000 → 0x6000 になって分類器が「壁」と読む(=湖が見えない)
-       ・部屋/通路が水没する(ゲームには無い挙動)
-     の二重の誤りが出ていた。**壁だけを水に置き換える**のが正しい。 */
+  /* 湖は「岩盤をくり抜いた水」。内部処理 の条件は **タイル&0x4000 だけ**で、
+     当たったマスに 内部処理 で水の値を **直接代入**する(ORではない)。
+     ・部屋の床(0x1200|idx)・通路(0x200)は 0x4000 が無いので素通り
+       (最果て88F/seed59252 で円の内側の部屋・通路が乾いたままなのと整合)
+     ・★面取りで壁になった部屋の角(0x5000|idx)は 0x4000 を持つので**水没する**。
+       部屋ビットを見て除外していたため、湖と面取りが重なるフロアで
+       ゲームは水・こちらは柱のまま、というズレが出ていた(6F/seed61740 で13マス)。 */
   fillCircleOr(g,{x:cx,y:cy},r,waterBit,(px,py)=>{
+    if(!inMesh(px,py))return;
     const v=mGet(g.m,px,py);
-    if(!(v&B_WALL))return;             // 部屋・通路は素通り
-    if(v&(0x8000|B_ROOM|B_FLOOR))return; // 範囲外/部屋/床も触らない
-    mAndN(g.m,px,py,B_WALL);
-    mOr(g.m,px,py,waterBit);           // 0x200(床)は立てない=歩けない水
+    if(!(v&B_WALL))return;
+    g.m[MI(px,py)]=waterBit;           // sh 代入。0x200(床)は立たない=歩けない水
   });
 }
 // 内部処理 相当だが OR 版(湖は既存タイルに水を足す)

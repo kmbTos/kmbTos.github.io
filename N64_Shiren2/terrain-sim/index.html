@@ -67,7 +67,7 @@ td.heat{min-width:44px}
 </head>
 <body>
 <header>
-  <h1 title="各階でどの地形・店・モンスターハウスが出るかを調べるツール">シレン2 地形シミュレータ<span class="ver"> β1.34 (公開版)</span></h1>
+  <h1 title="各階でどの地形・店・モンスターハウスが出るかを調べるツール">シレン2 地形シミュレータ<span class="ver"> β1.35 (公開版)</span></h1>
   <button id="tabBtnProb" class="primary">フロアデータ</button>
   <button id="tabBtnMap">ミニマップ生成</button>
   <span id="romStatus" class="note" ></span>
@@ -2018,6 +2018,7 @@ function growRoom(g,rng,rec,vertical){
     const y=useA?rec.t:rec.b;
     for(let x=rec.l;x<=rec.r;x++)if(inMesh(x,y))g.m[MI(x,y)]=fill;
   }
+  g.areaSum=roomAreaSum(g);   // 内部処理: 広げた後に面積合計 内部データ を再計算
   return true;
 }
 /* 内部処理: from→to へ階段状に掘り進み、通ったマスを水にする。
@@ -2818,13 +2819,28 @@ function placeMHRoom(g,rng,a,s){
 const FULL_RECT={t:10,l:10,b:43,r:65};      // 内部データ
 /* 内部処理: 「面積の重みで部屋を1つ引き、その矩形内から一様に1点」。
    ★ctx+0x95C(部屋予約)もサイズ条件も見ない。部屋が0個なら全域矩形から引く。 */
+/* 内部処理: 面積按分で部屋を選んで中のランダム点を返す。
+   ★面積合計は都度計算ではなく **保存値 内部データ** を使う。この値は部屋レコード確定時と
+   growRoom(内部処理)でだけ再計算され、**迷路の部屋削除(内部処理)では更新されない**。
+   そのため迷路が出たフロアでは合計に迷路の面積が残り、u16 がどの部屋にも当たらず
+   溢れることがある → 内部データ(床コード)&0xE0==0x20 なら ctx+0x9BC(迷路矩形)へ、
+   それ以外は部屋0へフォールバック(=**階段やシレンが迷路の中に出る**機構)。 */
+function roomAreaSum(g){
+  let s=0; for(const r of g.rooms)if(r)s+=(r.r-r.l+1)*(r.b-r.t+1);
+  return s;
+}
 function pickFloorPoint(g,rng){
   const rooms=g.rooms.filter(Boolean);
   if(!rooms.length)return randInRect(rng,FULL_RECT);
-  const area=rooms.map(r=>(r.r-r.l+1)*(r.b-r.t+1));
-  let sum=0; for(const v of area)sum+=v;          // 内部データ
-  let r=rng.u16((sum-1)&0xFFFF);
-  for(let i=0;i<rooms.length;i++){ if(r<area[i])return randInRect(rng,rooms[i]); r-=area[i]; }
+  if(g.areaSum==null)g.areaSum=roomAreaSum(g);     // 内部データ(レコード確定時の値)
+  let r=rng.u16((g.areaSum-1)&0xFFFF);
+  for(const rec of rooms){
+    const a=(rec.r-rec.l+1)*(rec.b-rec.t+1);       // 按分の各項は 内部処理 で都度計算
+    if(r<a)return randInRect(rng,rec);
+    r-=a;
+  }
+  /* 溢れ = 迷路で消えた部屋のぶん。床コード&0xE0==0x20(通常ダンジョン)前提 */
+  if(g.mazeRect)return randInRect(rng,g.mazeRect);
   return randInRect(rng,rooms[0]);
 }
 const inRect=(r,x,y)=>r&&x>=r.l&&x<=r.r&&y>=r.t&&y<=r.b;

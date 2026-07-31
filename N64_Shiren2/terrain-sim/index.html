@@ -67,7 +67,7 @@ td.heat{min-width:44px}
 </head>
 <body>
 <header>
-  <h1 title="各階でどの地形・店・モンスターハウスが出るかを調べるツール">シレン2 地形シミュレータ<span class="ver"> β1.32 (公開版)</span></h1>
+  <h1 title="各階でどの地形・店・モンスターハウスが出るかを調べるツール">シレン2 地形シミュレータ<span class="ver"> β1.34 (公開版)</span></h1>
   <button id="tabBtnProb" class="primary">フロアデータ</button>
   <button id="tabBtnMap">ミニマップ生成</button>
   <span id="romStatus" class="note" ></span>
@@ -2663,9 +2663,16 @@ function shopStock(g,rng,a,rec,cat){
   for(let i=0;i<total-nGhost;i++)put(cat,false);
   for(let i=0;i<nGhost;i++)put(0,true);
 }
+/* 占有グリッドはゲームでは2枚ある(アイテム=0x80145460 / モンスター=0x80146468)。
+   アイテムはアイテムだけを避け、モンスターの上には置ける(4F実測: 同一マスに両方が居る)。
+   階段・シレンは両方を避ける。 */
 const occKey=(x,y)=>y*128+x;
-function occupied(g,x,y){ return g.st.occ.has(occKey(x,y)); }
+function occupied(g,x,y){ return g.st.occ.has(occKey(x,y)); }              // アイテム格子
 function markOccupied(g,x,y){ g.st.occ.add(occKey(x,y)); }
+function occupiedAny(g,x,y){
+  return g.st.occ.has(occKey(x,y))||(g.st.occM&&g.st.occM.has(occKey(x,y)));
+}
+function markOccupiedM(g,x,y){ (g.st.occM||(g.st.occM=new Set())).add(occKey(x,y)); }
 /* 内部処理: モンスターハウス(bit0x4)。
    ★部屋の条件は「未使用」だけ。サイズもドア数も地形も一切見ない。
    予約したあと 内部処理 がテーマ→モンスター数→アイテム数を引く。 */
@@ -2692,16 +2699,18 @@ function placeableAt(g,x,y){
   return !occupied(g,x,y);
 }
 /* 内部処理+内部処理: 矩形内に最大100回で置き場所を探す。
-   1試行につき 内部処理 の uni32 ×2。isTrap のときだけ 内部処理 で pct を1本。 */
+   1試行につき 内部処理 の uni32 ×2。
+   ★ワナでも追加の乱数は**0本**(4F実測: 露出判定らしき pct を1本入れると
+     以降のワナ/アイテム分岐が全部ずれる。kAE=0 で14個の位置が全一致)。 */
 function placeObject(g,rng,rec,isTrap){
-  let ok=false;
   for(let i=0;i<100;i++){
     const p=randInRect(rng,rec);
     if(!placeableAt(g,p.x,p.y))continue;
-    markOccupied(g,p.x,p.y); ok=true; break;
+    markOccupied(g,p.x,p.y);
+    if(g.mhItems)g.mhItems.push(p);      // ゲーム照合用に位置を控える
+    return true;
   }
-  if(ok&&isTrap)rng.u(99);              // 内部処理: ワナの露出判定 pct
-  return ok;
+  return false;
 }
 /* 内部処理: モンスターハウス(bit0x4)。
    ★部屋の条件は「未使用」だけ。サイズもドア数も地形も一切見ない。
@@ -2742,39 +2751,41 @@ function placeMHRoom(g,rng,a,s){
   }
   if(!st)return idx;                                  // アイテム表が無いときは中身を作らない
   const tbl=mhMonTable(theme);
-  /* モンスター: 1体につき最大10回。1回=種族抽選(表なら u8+uni8 の2本)+座標 uni32×2 */
+  const spOv=(typeof SPAWN_OVERRIDE!=="undefined"&&SPAWN_OVERRIDE)||null; // ゲーム照合用(書換ROM対応)
+  g.mhMons=[];
+  /* モンスター: 1体につき最大10回 (内部処理 の内側ループ)。
+     1回 = 種族抽選+生成(内部処理) → 座標(内部処理) → 置けるか。
+     置けなければモンスターを破棄して同じ枠でやり直し。 */
   for(let i=0;i<nMon;i++){
     for(let t=0;t<10;t++){
-      /* --- 種族の抽選 (内部処理) --- */
+      /* --- 種族の抽選+生成 (内部処理) --- 順序が消費列に効くので asm どおりに:
+         テーマ0/8: u16(湧き重み合計-1) [AA7CC] → ctor raw8 [A8694→A3964]
+                    → 所持アイテム pct [F0130]
+         テーマ1-7,9: u8(表件数-1) → uni(1,最大Lv) → ctor raw8 (F0130 は通らない) */
       if(tbl){
-        /* テーマ1-7,9(特殊MH)はテーマ専用の表から引く。
-           表の件数で u8(件数-1) を1本 → そのIDの最大レベルで uni(1,最大レベル) を1本。
-           最大レベルはモンスター図鑑側の表なので、ここでは1で近似している
-           (最大レベルが3のときだけ棄却が入るので、まれに1本ずれる)。 */
         rng.u((tbl.length-1)&0xFF);
-        rng.uni(1,1);
+        rng.uni(1,1);        // 最大レベルは1で近似(3のときだけ稀に1本ずれる)
+        rng.raw8();
       }else{
-        /* テーマ0(通常)/8(投げ物)は通常の湧きテーブルから引く
-           (内部処理 → 内部処理 → 内部処理)。
-           重み合計から u16(合計-1) を1本。除外条件は通常成立しないのでリトライ無し。
-           そのあと 内部処理 が所持アイテム判定の pct を1本引く
-           (pct は確率値によらず消費本数が同じなので、モンスター図鑑の表は不要)。
-           ★ゲームの 内部処理 には「重み合計が0なら乱数0本で戻る」ガードがあるが、
-             ROMを書き換えた環境でもモンスターは湧いているため、
-             **沸く前提で常に消費する**。 */
-        const sp=a.spawnTbl||[];
+        const sp=spOv||a.spawnTbl||[];
         let sum=0; for(const e of sp)sum+=e.w;
+        /* 内部処理: 重み合計0なら**乱数0本で失敗** → モンスターは1体も出ない
+           (湧きを0化した改造ROMの88F実測。リトライ10回も全部0本)。 */
+        if(sum===0)break;
         rng.u16((sum-1)&0xFFFF);
+        rng.raw8();
         rng.u(99);
       }
-      /* --- 生成 (内部処理) --- 種族別コンストラクタが初期向きの raw8 を引く。
-         テーマの有無に関わらず通る経路なので、両方に効かせる。 */
-      rng.raw8();
       const p=randInRect(rng,rec);
-      if(placeableAt(g,p.x,p.y)){markOccupied(g,p.x,p.y);break;}
+      /* 内部処理(モンスター側の配置可否)+水チェック。モンスター格子に登録 */
+      const v=mGet(g.m,p.x,p.y);
+      if(!(v&B_WALL)&&(v&(B_ROOM|B_FLOOR))&&!(v&B_WATER)&&!occupiedAny(g,p.x,p.y)){
+        markOccupiedM(g,p.x,p.y); g.mhMons.push(p); break;
+      }
     }
   }
   /* アイテム: 1個につき最大10回。pct(40)でワナ、外れたら通常アイテム。 */
+  g.mhItems=[];
   for(let i=0;i<nItem;i++){
     for(let t=0;t<10;t++){
       if(rng.pct(rd8(0x129967))){        // ワナ(40%)
@@ -2817,11 +2828,31 @@ function pickFloorPoint(g,rng){
   return randInRect(rng,rooms[0]);
 }
 const inRect=(r,x,y)=>r&&x>=r.l&&x<=r.r&&y>=r.t&&y<=r.b;
+/* シレンの開始位置。ゲームは階段配置の直後に決まる(seed7/1F で実測一致)。
+   間に **raw8 を1本**(オブジェクト生成時の初期向き 内部処理 とみられる)挟み、
+   内部処理 相当の最大100回ループ:
+     1回 = 内部処理(面積按分で部屋を選び uni32×2) → 内部処理(占有/壁) →
+           店の矩形(内部処理) → 水(0x2000) を弾く。 */
+function placePlayer(g,rng){
+  rng.raw8();
+  for(let t=0;t<100;t++){
+    const p=pickFloorPoint(g,rng);
+    const v=mGet(g.m,p.x,p.y);
+    if(v&B_WALL)continue;
+    if(!(v&(B_ROOM|B_FLOOR)))continue;
+    if(v&B_WATER)continue;                               // 水は不可
+    if(g.st&&occupiedAny(g,p.x,p.y))continue;            // 占有(階段マス・モンスター含む)
+    let ng=false;
+    for(const i of (g.shopRooms||[]))if(inRect(g.rooms[i],p.x,p.y))ng=true;
+    if(ng)continue;
+    g.player=p; return;
+  }
+}
 /* 階段を置けるか。内部処理(タイル+オブジェクト+アイテム占有) /
    内部処理(店の矩形 内部データ) / ctx+0x99C(埋蔵金部屋) / ctx+0x9AC(島) */
 function stairPlaceable(g,x,y){
   if((mGet(g.m,x,y)&0xE190)!==0)return false;   // 範囲外/壁/水/0x100/氷/0x10 はどれも不可
-  if(g.st&&occupied(g,x,y))return false;
+  if(g.st&&occupiedAny(g,x,y))return false;
   for(const i of (g.shopRooms||[])){ if(inRect(g.rooms[i],x,y))return false; }
   if(g.goldRoom!=null&&inRect(g.rooms[g.goldRoom],x,y))return false;   // ctx+0x99C
   if(g.islandInner&&inRect(g.islandInner,x,y))return false;             // ctx+0x9AC
@@ -2913,6 +2944,7 @@ function placeSpecialTerrain(g,a,s,rng){
   if(has("迷路"))placeMaze(g,rng);          // BDAEC(氷部屋の後・壊れない壁の直前)
   if(has("壁"))placeHardWall(g,rng);        // BF6F4(迷路の後・階段の直前)
   placeStairs(g,rng,a,s);                  // BF738(チェーン最後・常に実行)
+  placePlayer(g,rng);                      // シレン開始位置(階段の直後。実測 seed7/1F 一致)
 }
 
 /* ---- メッシュ → 描画用レイアウト ---- */
@@ -3168,9 +3200,12 @@ function applySpecials(lay,a,s,rnd){
   }
   if(g0&&g0.goldStair)
     lay.marks.push({x:g0.goldStair.x-OFS,y:g0.goldStair.y-OFS,ch:"階",color:"#e8d33d"});
-  /* シレンの開始位置は★仮配置のまま(内部処理 系の配置は未実装)。
-     ゲームではシレンも店の中には来ないので、店/MH/階段の部屋は避けておく。 */
-  if(mazeStart)lay.marks.push({x:mazeStart.x,y:mazeStart.y,ch:"＠",color:"#5dc878"});
+  /* シレンの開始位置 = placePlayer(内部処理+内部処理 相当)の結果。
+     アイテム/罠/モンスターの自然湧きは未実装だが、実測(seed7/1F)では
+     プレイヤー配置は階段の直後なのでそれらの影響を受けない。 */
+  if(g0&&g0.player)
+    lay.marks.push({x:g0.player.x-OFS,y:g0.player.y-OFS,ch:"＠",color:"#5dc878"});
+  else if(mazeStart)lay.marks.push({x:mazeStart.x,y:mazeStart.y,ch:"＠",color:"#5dc878"});
   else{
     const ok=rooms.filter(r=>!isShop(r)&&!isMH(r));
     const pr=pick(ok.filter(r=>r!==stairRoom),
@@ -3351,8 +3386,8 @@ function renderMapTab(){
       mapSel.hist.length?{}:{disabled:"disabled"}),"← 前のシード"),
     el("span",{class:"note",title:"シードは0〜999999の範囲で指定してください。7桁以上でも動作はします。"},
       "※6桁(0〜999999)"),
-    el("span",{class:"note",title:"部屋・通路の生成、特殊地形、店の中身、階段の配置まで再現しています。シレンの開始位置とフロアのアイテム/罠はまだ未対応です。"},
-      "※店やモンスターハウスが出るフロアは、それ以降の部屋割りと階段の位置がゲーム内と食い違うことがあります"));
+    el("span",{class:"note",title:"部屋・通路の生成、特殊地形、店とモンスターハウスの中身、階段とシレンの開始位置まで再現しています。フロアに自然に出るアイテム/罠はまだ未対応です。"},
+      "※フロアに自然に出るアイテム/罠はまだ未対応です"));
   ctl.append(r1);
   box.append(ctl);
   if(!row||!row.fd){box.append(el("div",{class:"card"},"このフロアにはフロアデータがありません"));return;}
@@ -3376,8 +3411,8 @@ function renderMapTab(){
     el("span",null,el("i",{style:"background:"+SPECIAL_TINT["MH"]}),"モンハウ"),
     el("span",null,el("i",{style:"background:"+SPECIAL_TINT["迷路"]}),"迷路(＠=開始位置)"),
     el("span",null,el("i",{style:"background:"+SPECIAL_TINT["埋"]}),"埋蔵金"),
-    el("span",{title:"階段の位置は再現済みです。シレンの開始位置とフロアのアイテム/罠はまだ未対応で、仮の位置に表示しています。",
-      style:"color:var(--warn)"},"段=階段 階=黄金の階段 ＠=シレン(位置は仮)")));
+    el("span",{title:"階段とシレンの開始位置は再現済みです。フロアに自然に出るアイテム/罠はまだ未対応です。",
+      style:"color:var(--warn)"},"段=階段 階=黄金の階段 ＠=シレン開始位置")));
   box.append(main);
 
   // 連続12枚

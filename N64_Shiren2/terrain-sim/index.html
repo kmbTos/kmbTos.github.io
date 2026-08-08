@@ -642,20 +642,16 @@ function showTab(which){
 document.getElementById("tabBtnProb").onclick=()=>showTab("prob");
 document.getElementById("tabBtnMap").onclick=()=>showTab("map");
 
-function renderDungeon(){
-  const d=model.dungeons[sel.dgn];
-  document.getElementById("dgnInfo").textContent=
-    `全${d.rows.length}階 / フロア設定 ${d.fdRows}種 / 2軒目店率=${model.shop2}%`;
-  const wrap=document.getElementById("floorTableWrap");
-  wrap.innerHTML="";
-  const t=el("table",{class:"grid"});
-  const heads=[["階","表示階(0=村/イベント)"],["名称","階名"],["FD","フロアデータindex(基礎+4)"],["地","地形ID(フロアデータ+0)"],["部屋タイプ","基礎+9(0xFF=地形IDから動的抽選)"],
-   ["店%","店の実効出現率"],["MH%","モンハウ実効出現率"],["迷路%",""],["埋蔵金%",""],["水路%",""],["湖%",""],["池%",""],["島%",""],["柱%",""],["壁%",""],["氷部屋%",""],
-   ["幅2","幅2マス通路(確定)"],["氷結%","水地形が氷になる率(全type共通ロール)"],["水%","水フロア率(別系統・生値)"],["行商%","行商人率(別系統・生値)"]];
-  t.append(el("tr",null,...heads.map(h=>el("th",{title:h[1]},h[0]))));
-  d.rows.forEach((row,i)=>{
-    const tr=el("tr",{class:"click"+(i===sel.floor?" sel":"")+((row.town||row.shuffle)?" off":"")});
-    tr.onclick=()=>{sel.floor=i;whatif=null;renderDungeon();renderDetail();};
+/* フロア一覧の列見出し。ミニマップ生成タブの1行表示でも共用する。 */
+const FLOOR_HEADS=[["階","表示階(0=村/イベント)"],["名称","階名"],["FD","フロアデータindex(基礎+4)"],["地","地形ID(フロアデータ+0)"],["部屋タイプ","基礎+9(0xFF=地形IDから動的抽選)"],
+ ["店%","店の実効出現率"],["MH%","モンハウ実効出現率"],["迷路%",""],["埋蔵金%",""],["水路%",""],["湖%",""],["池%",""],["島%",""],["柱%",""],["壁%",""],["氷部屋%",""],
+ ["幅2","幅2マス通路(確定)"],["氷結%","水地形が氷になる率(全type共通ロール)"],["水%","水フロア率(別系統・生値)"],["行商%","行商人率(別系統・生値)"]];
+function floorHeadRow(){return el("tr",null,...FLOOR_HEADS.map(h=>el("th",{title:h[1]},h[0])));}
+
+/* 1フロア分の<tr>を組み立てる。onSel を渡すとクリックで選択できる(フロアデータタブ用)。 */
+function buildFloorTr(row,selected,onSel){
+    const tr=el("tr",{class:(onSel?"click":"")+(selected?" sel":"")+((row.town||row.shuffle)?" off":"")});
+    if(onSel)tr.onclick=onSel;
     const fname=FLOOR_NAMES[row.bd[1]]||hex(row.bd[1]);
     /* 黄金の階段が出る階は階数を黄色にする(ミニマップの「階」マークと同じ色)。 */
     const gsDgn=DGN_NO_BY_BASIC[row.bdAddr!=null?row.bdAddr:-1];
@@ -668,7 +664,7 @@ function renderDungeon(){
     if(row.town)tags.append(el("span",{class:"tag town",title:"村/休憩/イベントフロア"},"村"));
     tr.append(tags);
     tr.append(el("td",null,row.fd?row.fdIdx+1:el("span",{class:"tag warn"},"×")));
-    if(!row.fd){tr.append(el("td",{colspan:17,class:"lbl zero"},"フロアデータ範囲外"));t.append(tr);return;}
+    if(!row.fd){tr.append(el("td",{colspan:17,class:"lbl zero"},"フロアデータ範囲外"));return tr;}
     const a=analyzeFloor(row);
     tr.append(el("td",null,a.tid));
     const tdType=el("td",{class:"lbl"});
@@ -687,7 +683,19 @@ function renderDungeon(){
     tr.append(heatCell(a.ice,a.ice,"氷結は部屋タイプによらず毎フロア1回ロール"));
     tr.append(heatCell(a.fd[0x0C]/100,a.fd[0x0C]/100,"水フロア率(内部処理外の別系統。type非依存の生値)"));
     tr.append(heatCell(a.fd[0x1B]/100,a.fd[0x1B]/100,"行商人率(別系統・生値)"));
-    t.append(tr);
+    return tr;
+}
+
+function renderDungeon(){
+  const d=model.dungeons[sel.dgn];
+  document.getElementById("dgnInfo").textContent=
+    `全${d.rows.length}階 / フロア設定 ${d.fdRows}種 / 2軒目店率=${model.shop2}%`;
+  const wrap=document.getElementById("floorTableWrap");
+  wrap.innerHTML="";
+  const t=el("table",{class:"grid"});
+  t.append(floorHeadRow());
+  d.rows.forEach((row,i)=>{
+    t.append(buildFloorTr(row,i===sel.floor,()=>{sel.floor=i;whatif=null;renderDungeon();renderDetail();}));
   });
   wrap.append(t);
   renderDetail();
@@ -2398,10 +2406,13 @@ function hwWalk(g,rng,from,to,hfirst){
     if((doneX&&doneY)||++guard>200)return;
   }
 }
-/* 内部処理(rect,1): 矩形を1マス広げた枠を 0x4020 で **代入(上書き)**する。
+/* 内部処理(ctx, rect, undig): 矩形を1マス広げた枠を **代入(上書き)**する。
+   書き込む値は undig!=0 なら 0x4020(壊れない壁)、0 なら 0x4000(普通の壁)。
    有効域(10,10)-(43,65) の閉区間内で、かつ 0xE100(範囲外|壁|水|0x100)に掛かるマスだけ。
-   → 部屋床・通路・ドアは書かれないので、ドアの位置にはリングの穴が開く。 */
-function hwRing(g,rec){
+   → 部屋床・通路・ドアは書かれないので、ドアの位置にはリングの穴が開く。
+   壊れない壁(内部処理)だけでなく **店(内部処理 の末尾)でも呼ばれる**。 */
+function wallRing(g,rec,undig){
+  const val=undig?(B_WALL|B_UNDIG):B_WALL;
   const w=rec.r-rec.l+1,h=rec.b-rec.t+1;
   const sides=[
     {x:rec.r+1,y:rec.t-1,d:6,n:h+2},
@@ -2413,10 +2424,11 @@ function hwRing(g,rec){
     let x=s.x,y=s.y; const[dy,dx]=DIR8[s.d];
     for(let k=0;k<s.n;k++,x+=dx,y+=dy){
       if(x<BIGROOM.l||x>BIGROOM.r||y<BIGROOM.t||y>BIGROOM.b)continue;
-      if(mGet(g.m,x,y)&0xE100)g.m[MI(x,y)]=B_WALL|B_UNDIG;   // sh 代入
+      if(mGet(g.m,x,y)&0xE100)g.m[MI(x,y)]=val;   // sh 代入
     }
   }
 }
+const hwRing=(g,rec)=>wallRing(g,rec,1);
 function placeHardWall(g,rng){
   // (A) 縁の2点(右家族から1つ・左家族から1つ)→ 中心へ折れ線
   const sel=new Array(8).fill(0);
@@ -2516,7 +2528,7 @@ function initItem(rng,st,id){
 /* [D4] クラス別ctorの抽選。ROM実測で「pct の直後に高々1本」だけ引く */
 function itemCtorRoll(rng,st,id,c){
   if(c===3){ rng.uni(rd8(0x1299D7),rd8(0x1299D9)); return; }   // 剣: 内部処理 uni(15,60)
-  if(c===7){ const b=rd8(STAFF_USES+id-0x8E); rng.uni(b&0xF,b>>4); return; }  // 杖の回数
+  if(c===7){ const b=rd8(STAFF_USES+id-0x8E); rng.uni(b&0xF,b>>4); return; }  // 杖の回数(class7=0x8E〜)
   if(c===9){
     if(id===0xAC||id===0xB0)return;          // 容量を振らない壺(内部処理/内部処理)
     const b=rd8(POT_CAP+id-0xA6); rng.uni(b&0xF,b>>4);
@@ -2531,7 +2543,7 @@ function itemPostRoll(rng,id,c,dgn){
   switch(c){
     case 3: case 4: rng.u(99); break;   // 修正値(5バイト重み表・和100 → -1/0/+1/+2/+3)
     case 5: {const k=(id-0x76)*4; rng.uni16(rd16(0x1299E0+k),rd16(0x1299E2+k));} break; // 矢の本数
-    case 6: rng.u(99); break;           // 腕輪の呪い pct(内部データ+dgn)
+    case 6: rng.u(99); break;           // 腕輪の呪い pct(内部処理, class6=0x7B〜0x8D)
     case 11: rng.uni16(rd16(0x1299FA),rd16(0x1299FC)); break;  // 石
     case 12: rng.uni16(rd16(0x1299FE),rd16(0x129A00)); break;  // 弾
     /* class17 は 内部処理。ダンジョン番号(内部データ)が 1..3 なら乱数0本、
@@ -2585,7 +2597,11 @@ function placeShopRooms(g,rng,a){
     g.shopRooms.push(idx);
     if(!g.st)continue;             // アイテム表が無い(内蔵blob未展開)ときは中身を作らない
     shopContent(g,rng,a,idx);      // 内部処理(店種別+店主+商品)
-    rng.pct(rd8(0x129AFF));        // 内部処理 の第3引数(リング描画自体は乱数0本)
+    /* ★店の周りに壁のリングを描く(内部処理)。pct に当たると 0x4020=壊れない壁、
+       外れると 0x4000=普通の壁。既に固い(&0xE100)マスだけを上書きするので、
+       ドアの位置には穴が開き、店の隣が水だったマスは壁に変わる。
+       pct は引いていたのに描画を呼んでいなかった(15F/seed333197 のユーザ報告)。 */
+    wallRing(g,g.rooms[idx],rng.pct(rd8(0x129AFF))?1:0);
   }
 }
 /* 内部処理: 店の中身。
@@ -2606,7 +2622,23 @@ function shopContent(g,rng,a,roomIdx){
   }
   g.shopCat=cat; g.shopCatIdx=catIdx;
   shopKeepers(g,rng,rec);        // 内部処理
+  shopApron(g,rec);              // 内部処理(乱数0本)
   shopStock(g,rng,a,rec,cat);    // 内部処理
+}
+/* 内部処理: 各ドアの8近傍のうち **部屋の矩形内でアイテムがまだ無いマス** に
+   ビット 0x10 を立てる(内部処理 で OR)。乱数は使わない。
+   内部処理 はこのビットが立ったマスに商品を置かない = 入口の前が空く。
+   ★これが無いと商品が入口前まで並び、置けた/置けなかったの分岐が変わって
+     商品の個数と以降の乱数消費がずれる(15F/seed333197 で商品8個 vs ゲーム7個)。 */
+function shopApron(g,rec){
+  for(const d of roomDoors(g,rec)){
+    for(let k=0;k<8;k++){
+      const[dy,dx]=DIR8[k], x=d.x+dx, y=d.y+dy;
+      if(x<rec.l||x>rec.r||y<rec.t||y>rec.b)continue;   // 内部処理
+      if(g.st&&occupied(g,x,y))continue;                // 内部処理
+      mOr(g.m,x,y,0x10);
+    }
+  }
 }
 /* 内部処理→内部処理→内部処理: ドアごとに店主を１体置く。
    内部処理 は第6引数に 1 を渡すので 内部処理 の基準座標は (0,0) になり、
@@ -2620,13 +2652,19 @@ function shopContent(g,rng,a,roomIdx){
 const KEEPER_DIRS=[3,1,5,7,3,1,5];
 function shopKeepers(g,rng,rec){
   for(const d of roomDoors(g,rec)){
+    /* ★店主オブジェクト生成(内部処理→…→内部処理)が初期向きの raw8 を1本引く
+       (内部処理)。そのあと 内部処理 が方向テーブルの開始位置 raw8&3 を引く。 */
+    rng.raw8();
     const fp=rng.raw8()&3;
     for(let k=0;k<4;k++){
       const dir=KEEPER_DIRS[fp+k]&7;
       const x=d.x+DIR8[dir][1], y=d.y+DIR8[dir][0];   // DIR8 は [dy,dx]
-      if(x<rec.l||x>rec.r||y<rec.t||y>rec.b)continue;
-      if(occupied(g,x,y))continue;
-      markOccupied(g,x,y); break;
+      if(x<rec.l||x>rec.r||y<rec.t||y>rec.b)continue;   // 内部処理
+      if(nearDoor(g,x,y))continue;                      // ★内部処理: ドアの真正面は不可
+      /* ★店主はモンスター格子(0x80146468)側。アイテム格子(0x80145460)には入らないので、
+         直後の 内部処理 は店主のマスにも 0x10 を立てる。 */
+      if(occupiedAny(g,x,y))continue;
+      markOccupiedM(g,x,y); break;
     }
   }
 }
@@ -2640,6 +2678,7 @@ function shopStock(g,rng,a,rec,cat){
   const st=g.st;
   const w=rec.r-rec.l+1, h=rec.b-rec.t+1;
   let cx=rec.l+(w>>1), cy=rec.t+(h>>1);
+  /* ジッタは 幅(cx) が先(内部処理=矩形{Y,X}のX側=幅)、高さ(cy) が後 */
   if((w&1)===0&&(rng.raw8()&1))cx--;
   if((h&1)===0&&(rng.raw8()&1))cy--;
   const nd=a.ndooba||[0,0,0];
@@ -2650,8 +2689,9 @@ function shopStock(g,rng,a,rec,cat){
     const s5=rng.uni(0,8);
     for(let k=0;k<9;k++){
       const j=s5+k, x=cx+SPIRAL_DX[j], y=cy+SPIRAL_DY[j];
-      if(x<rec.l||x>rec.r||y<rec.t||y>rec.b)continue;
-      if(occupied(g,x,y))continue;
+      if(x<rec.l||x>rec.r||y<rec.t||y>rec.b)continue;   // 内部処理
+      if(mGet(g.m,x,y)&0x10)continue;                   // ★入口前(内部処理)には置かない
+      if(occupied(g,x,y))continue;                      // 内部処理
       markOccupied(g,x,y);
       const id=makeItem(rng,st,a.shopTbl,useCat);
       /* ンドゥバは作った商品を 内部処理 でモンスターに化けさせる。
@@ -2798,8 +2838,20 @@ function placeMHRoom(g,rng,a,s){
         initItem(rng,st,id);             // ワナも 内部処理+AB35C を通る
         if(placeObject(g,rng,rec,true))break;
       }else{
-        if(!makeItem(rng,st,a.itemTbl,0))continue;   // 床アイテム表(内部データ)
-        if(placeObject(g,rng,rec,false))break;
+        const id=makeItem(rng,st,a.itemTbl,0);       // 床アイテム表(内部データ)
+        if(!id)continue;
+        if(placeObject(g,rng,rec,false)){
+          /* ★配置成功後は 内部処理 を通る(島と同じ)。巻物(class10)は
+             pct(100-内部データ[dgn]) に当たるとモンスターに化けて2本消費し、
+             アイテム格子から消える。これを入れないとMHの消費が大きく不足する。 */
+          if(itemClass(id)===10&&rng.pct(100-rd8(0x129CE0+(g.st.dgnNo|0)))){
+            rng.raw8(); rng.u(99);
+            const p=g.mhItems.pop();                  // アイテムとしては消える
+            if(p)g.st.occ.delete(occKey(p.x,p.y));    // 格子も解放(モンスター側へ)
+            if(p){markOccupiedM(g,p.x,p.y);g.mhMons.push(p);}
+          }
+          break;
+        }
       }
     }
   }
@@ -3408,6 +3460,17 @@ function renderMapTab(){
   if(!row||!row.fd){box.append(el("div",{class:"card"},"このフロアにはフロアデータがありません"));return;}
   if(row.shuffle)ctl.append(el("p",{class:"note"},el("span",{class:"tag shuffle"},"注意"),
     " このフロアは固定(シャッフル)マップ系のため、実際はランダム生成されない(参考表示)"));
+
+  /* 選択中フロアのフロアデータ(フロアデータタブの一覧と同じ行)を1行だけ表示。 */
+  {
+    const fdCard=el("div",{class:"card"});
+    const lg=el("div",{class:"legend",style:"margin:0 0 6px"},el("span",{class:"note"},"部屋タイプ:"));
+    TYPE_NAMES.forEach((n,t)=>lg.append(el("span",{title:TYPE_DESC[t]},el("i",{style:"background:"+TYPE_COLORS[t]}),t+":"+n)));
+    const tbl=el("table",{class:"grid"});
+    tbl.append(floorHeadRow(),buildFloorTr(row,true,null));
+    fdCard.append(lg,el("div",{style:"overflow-x:auto"},tbl));
+    box.append(fdCard);
+  }
 
   // メイン1枚
   const tr=genTrial(row,mapSel.seed);
